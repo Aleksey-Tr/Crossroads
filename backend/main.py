@@ -1,28 +1,34 @@
 from fastapi import FastAPI
-from models.BookModels import BooksSortFields, BookModel, CharacterShortModel, CharacterFullModel
-from repo.BooksRepo import bookRepo
+from models import BookModel, BooksSortFields, CharacterFullModel, CharacterShortModel
+from repository import repo
 
 app = FastAPI()
 
 @app.post('/books')
-def createBook():
+def create_book():
     ...
 
 @app.get('/books')
-def getBooks(search: str = "", sortBy: BooksSortFields = BooksSortFields.default()) -> list[BookModel]:
-    booksOrm = bookRepo.getBooks(search, sortBy)
-    books = [BookModel.model_validate(bookOrm) for bookOrm in booksOrm]
+def get_books(search: str = "", sort_by: BooksSortFields = BooksSortFields.default) -> list[BookModel]:
+    books_orm = repo.get_books(search, sort_by)
+    books = [BookModel.model_validate(book_orm) for book_orm in books_orm]
         
     return books
 
-@app.get('/books/{bookId}')
-def getBook(bookId: int) -> BookModel:
-    ...
+@app.get('/books/{book_id}')
+def get_book_by_id(id: int) -> BookModel:
+    book_orm = repo.get_book_by_id(id)
+    book = BookModel.model_validate(book_orm)
 
-@app.get('/books/{bookId}/characters')
-def getCharacters(bookId: int) -> list[CharacterShortModel]:
-    ...
+    return book
 
-@app.get('/books/{bookId}/characters/{characterId}')
-def getCharacter(bookId: int, characterId: int) -> CharacterFullModel:
+@app.get('/books/{book_id}/characters')
+def get_characters(book_id: int) -> list[CharacterShortModel]:
+    characters_orm = repo.get_characters(book_id)
+    characters = [CharacterShortModel.model_validate(character_orm) for character_orm in characters_orm]
+
+    return characters
+
+@app.get('/books/{book_id}/characters/{characterId}')
+def get_character(book_id: int, character_id: int) -> CharacterFullModel:
     ...
