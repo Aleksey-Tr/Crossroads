@@ -1,4 +1,3 @@
--- Active: 1785762682836@@127.0.0.1@5432@novels_test_db
 DROP DATABASE IF EXISTS novels_test_db;
 
 CREATE DATABASE novels_test_db;
