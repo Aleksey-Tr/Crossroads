@@ -13,17 +13,18 @@ CREATE TABLE users (
     password_hash VARCHAR() NOT NULL
 );
 
-CREATE TABLE novels (
+CREATE TABLE books (
     id SERIAL PRIMARY KEY,
     author_id INTEGER FOREIGN KEY REFERENCES users (id) NOT NULL,
     title VARCHAR(64) NOT NULL,
     description TEXT NULL,
+    published_at DATE
 );
 
 CREATE TABLE characters (
-    novel_id INTEGER NOT NULL FOREIGN KEY REFERENCES novels (id),
+    book_id INTEGER NOT NULL FOREIGN KEY REFERENCES books (id),
     character_id INTEGER NOT NULL,
     title VARCHAR(16) NULL, --если есть нумерация глава 1, глава 2, то оставить NULL иначе NOT NULL
     content TEXT NOT NULL,
-    PRIMARY KEY (novel_id, character_id)
+    PRIMARY KEY (book_id, character_id)
 );
