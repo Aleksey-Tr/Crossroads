@@ -4,6 +4,14 @@ from repository import repo
 
 app = FastAPI()
 
+@app.post('/auth/login')
+def login():
+    ...
+
+@app.post('/auth/register')
+def register():
+    ...
+
 @app.post('/books')
 def create_book():
     ...
@@ -23,6 +31,10 @@ def get_book_by_id(id: int) -> BookModel:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Книга не найдена')
         
     return BookModel.model_validate(book_orm)
+
+@app.post('/books/{book_id}/characters')
+def create_character():
+    ...
 
 @app.get('/books/{book_id}/characters', responses={404: {'description': 'Книга с указанным ID не найдена'}})
 def get_characters(book_id: int) -> list[CharacterShortModel]:
