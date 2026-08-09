@@ -1,6 +1,6 @@
-from models import BooksSortFields, CharacterShortModel
-from sqlalchemy import create_engine, ForeignKey, String, select, Text
-from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, sessionmaker, joinedload, relationship
+from models import BooksSortFields
+from sqlalchemy import create_engine, ForeignKey, String, select, Text, and_
+from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, sessionmaker, joinedload, relationship, undefer
 
 class Base(DeclarativeBase):
     pass
@@ -48,16 +48,25 @@ class Repository():
             result = sess.scalars(sql).all()
         return result
 
-    def get_book_by_id(self, id: int) -> BookBase:
+    def get_book_by_id(self, id: int) -> BookBase|None:
         with self.session() as sess:
             sql = select(BookBase).where(BookBase.id == id).options(joinedload(BookBase.author))
-            result = sess.scalars(sql).one()
+            result = sess.scalars(sql).one_or_none()
         return result
 
     def get_characters(self, book_id: int) -> list[CharacterBase]:
         with self.session() as sess:
             sql = select(CharacterBase).where(CharacterBase.book_id == book_id)
             result = sess.scalars(sql).all()
+
+        return result
+
+    def get_character_by_id(self, book_id: int, character_id: int) -> CharacterBase:
+        with self.session() as sess:
+            sql = select(CharacterBase).where(
+                and_(CharacterBase.book_id == book_id, CharacterBase.character_id == character_id)
+                ).options(undefer(CharacterBase.content))
+            result = sess.scalars(sql).one_or_none()
 
         return result
     
