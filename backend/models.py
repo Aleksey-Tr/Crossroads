@@ -38,3 +38,7 @@ class BookModel(BaseModel):
         else:
             data.author_name = "-"
         return data
+
+class NewUserModel(BaseModel):
+    login: str = Field(max_length=32)
+    password: str = Field(max_length=16)

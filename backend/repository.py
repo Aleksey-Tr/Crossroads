@@ -1,6 +1,7 @@
 from models import BooksSortFields
 from sqlalchemy import create_engine, ForeignKey, String, select, Text, and_
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, sessionmaker, joinedload, relationship, undefer
+from auth import password_to_hash, verify_password
 
 class Base(DeclarativeBase):
     pass
@@ -10,7 +11,10 @@ class UserBase(Base):
     
     id: Mapped[int] = mapped_column(primary_key=True)
     role: Mapped[str] = mapped_column(String(16) ,default='user')
-    nickname: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
+    login: Mapped[str] = mapped_column(String(32), unique=True)
+    password: Mapped[str] = mapped_column(String(16)) #####    УБРАТЬ НАДО !!!!!!!
+    password_hash: Mapped[str] = mapped_column(String(255))
+    nickname: Mapped[str] = mapped_column(String(32), unique=True)
 
 class BookBase(Base):
     __tablename__ = 'books'
@@ -69,6 +73,21 @@ class Repository():
             result = sess.scalars(sql).one_or_none()
 
         return result
-    
 
+    def get_user_by_login(self, login: str) -> UserBase|None:
+        with self.session() as sess:
+            sql = select(UserBase).where(UserBase.login == login)
+            result = sess.scalars(sql).one_or_none()
+
+        return result
+
+    def create_user(self, login: str, password: str):
+        new_user = UserBase(login=login, password_hash=password_to_hash(password), nickname=login, password=password)
+        with self.session() as sess:
+            sess.add(new_user)
+            sess.commit()
+            sess.refresh(new_user)
+        return new_user.login
+
+    
 repo = Repository()
