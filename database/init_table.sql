@@ -9,7 +9,7 @@ CREATE TABLE users (
     role VARCHAR(16) NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
     login VARCHAR(32) UNIQUE NOT NULL,
     nickname VARCHAR(32) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL
+    hashed_password VARCHAR(255) NOT NULL
 );
 
 CREATE TABLE books (

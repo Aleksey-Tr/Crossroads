@@ -1,21 +1,29 @@
 from fastapi import FastAPI, HTTPException, status
-from models import BookModel, BooksSortFields, CharacterFullModel, CharacterShortModel, NewUserModel
+from models import BookModel, BooksSortFields, CharacterFullModel, CharacterShortModel, RegisterForm, LoginForm
 from repository import repo
+from auth import password_to_hash, verify_password
 
 app = FastAPI()
 
-@app.post('/auth/login')
-def login():
-    ...
+@app.post('/auth/login',responses={401: {'description': 'Неверный логин или пароль'}})
+def login(form: LoginForm):
+    user = repo.get_user_by_login(form.login)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Неверный логин или пароль')
+
+    if verify_password(form.password, user.hashed_password):
+        return 'успешный логин' #добавить токен
+
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Неверный логин или пароль')
 
 @app.post('/auth/register', responses={409: {'description': 'Данный логин занят'}})
-def register(new_user: NewUserModel):
-    is_user_exists = repo.get_user_by_login(new_user.login)
+def register(form: RegisterForm):
+    is_user_exists = repo.get_user_by_login(form.login)
     if is_user_exists:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Данный логин занят')
 
-    new_user_login = repo.create_user(new_user.login, new_user.password)
-    return f"Пользователь с логином {new_user_login} создан"
+    new_user = repo.create_user(form.login, password_to_hash(form.raw_password))
+    return f"Пользователь с логином {new_user.login} создан"
 
 @app.post('/books')
 def create_book():

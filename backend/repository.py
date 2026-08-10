@@ -12,7 +12,7 @@ class UserBase(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     role: Mapped[str] = mapped_column(String(16) ,default='user')
     login: Mapped[str] = mapped_column(String(32), unique=True)
-    password_hash: Mapped[str] = mapped_column(String(255))
+    hashed_password: Mapped[str] = mapped_column(String(255))
     nickname: Mapped[str] = mapped_column(String(32), unique=True)
 
 class BookBase(Base):
@@ -80,13 +80,13 @@ class Repository():
 
         return result
 
-    def create_user(self, login: str, password: str):
-        new_user = UserBase(login=login, password_hash=password_to_hash(password), nickname=login, password=password)
+    def create_user(self, login: str, hashed_password: str):
+        new_user = UserBase(login=login, hashed_password=hashed_password, nickname=login)
         with self.session() as sess:
             sess.add(new_user)
             sess.commit()
             sess.refresh(new_user)
-        return new_user.login
+        return new_user
 
     
 repo = Repository()

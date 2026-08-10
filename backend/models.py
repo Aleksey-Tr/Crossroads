@@ -39,6 +39,10 @@ class BookModel(BaseModel):
             data.author_name = "-"
         return data
 
-class NewUserModel(BaseModel):
+class RegisterForm(BaseModel):
     login: str = Field(max_length=32)
-    password: str = Field(max_length=16)
+    raw_password: str = Field(max_length=16)
+
+class LoginForm(BaseModel):
+    login: str
+    password: str

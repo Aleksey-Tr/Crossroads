@@ -3,7 +3,7 @@ INSERT INTO
         role,
         login,
         nickname,
-        password_hash
+        hashed_password
     )
 VALUES
     -- Администраторы
