@@ -9,7 +9,6 @@ CREATE TABLE users (
     role VARCHAR(16) NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
     login VARCHAR(32) UNIQUE NOT NULL,
     nickname VARCHAR(32) UNIQUE NOT NULL,
-    password VARCHAR(16) NOT NULL, --только для тестов
     password_hash VARCHAR(255) NOT NULL
 );
 

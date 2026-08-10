@@ -12,7 +12,6 @@ class UserBase(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     role: Mapped[str] = mapped_column(String(16) ,default='user')
     login: Mapped[str] = mapped_column(String(32), unique=True)
-    password: Mapped[str] = mapped_column(String(16)) #####    УБРАТЬ НАДО !!!!!!!
     password_hash: Mapped[str] = mapped_column(String(255))
     nickname: Mapped[str] = mapped_column(String(32), unique=True)
 
