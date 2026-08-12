@@ -72,3 +72,7 @@ def get_character(book_id: int, character_id: int) -> CharacterFullModel:
 
     character = CharacterFullModel.model_validate(character_orm)
     return character
+
+if __name__=='__main__':
+    from uvicorn import run
+    run("main:app", host="127.0.0.1", port=8000, reload=True)
