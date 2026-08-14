@@ -35,9 +35,10 @@ class TagModel(BaseModel):
 class BookModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    author_id: int
+    author_id: int|None
     title: str
-    description: str
+    description: str|None
+    #published_at
 
     author_name: str
     genres: list[GenreModel]
@@ -52,15 +53,17 @@ class BookModel(BaseModel):
         return data
     @model_validator(mode='before')
     def getGenres(data):
-        genres = list()
         if data.genres:
-            genres = [GenreModel.model_validate(genre) for genre in data.genres]
+            data.genres = [GenreModel.model_validate(genre) for genre in data.genres]
+        else:
+            data.genres = None
         return data
     @model_validator(mode='before')
     def getTags(data):
-        tags = list()
         if data.genres:
-            tags = [TagModel.model_validate(tag) for tag in data.tags]
+            data.tags = [TagModel.model_validate(tag) for tag in data.tags]
+        else:
+            data.tags = None
         return data
 
 

@@ -14,31 +14,31 @@ CREATE TABLE users (
 
 CREATE TABLE books (
     id SERIAL PRIMARY KEY,
-    author_id INTEGER REFERENCES users (id) ON DELETE SET NULL,
+    author_id INTEGER NULL REFERENCES users (id) ON DELETE SET NULL,
     title VARCHAR(64) NOT NULL,
     description TEXT NULL,
-    published_at DATE
+    published_at DATE NOT NULL DEFAULT CURRENT_DATE
 );
 
 CREATE TABLE genres (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(64) UNIQUE
+    name VARCHAR(64) NOT NULL UNIQUE
 );
 
 CREATE TABLE book_to_genre (
-    book_id INTEGER REFERENCES books (id),
-    genre_id INTEGER REFERENCES genres (id),
+    book_id INTEGER REFERENCES books (id) ON DELETE CASCADE,
+    genre_id INTEGER REFERENCES genres (id) ON DELETE CASCADE,
     PRIMARY KEY (book_id, genre_id)
 );
 
 CREATE TABLE tags (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(64) UNIQUE
+    name VARCHAR(64) NOT NULL UNIQUE
 );
 
 CREATE TABLE book_to_tag (
-    book_id INTEGER REFERENCES books (id),
-    tag_id INTEGER REFERENCES tags (id),
+    book_id INTEGER REFERENCES books (id) ON DELETE CASCADE,
+    tag_id INTEGER REFERENCES tags (id) ON DELETE CASCADE,
     PRIMARY KEY (book_id, tag_id)
 );
 

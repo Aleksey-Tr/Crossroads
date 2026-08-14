@@ -29,9 +29,10 @@ class BookRepo(Base):
     __tablename__ = 'books'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    author_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
+    author_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=True)
     title: Mapped[str] = mapped_column(String(64), nullable=False)
-    description: Mapped[str|None] = mapped_column(nullable=True)
+    description: Mapped[str] = mapped_column(nullable=True)
+    #published_at
 
     author: Mapped[UserRepo] = relationship(back_populates='books')
     genres: Mapped[list['GenreRepo']] = relationship(secondary=book_to_genre, back_populates='books')
@@ -41,7 +42,7 @@ class GenreRepo(Base):
     __tablename__ = 'genres'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(64), unique=True)
+    name: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
 
     books: Mapped[list[BookRepo]] = relationship(secondary=book_to_genre, back_populates='genres')
 
@@ -49,7 +50,7 @@ class TagsRepo(Base):
     __tablename__ = 'tags'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(64), unique=True)
+    name: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
 
     books: Mapped[BookRepo] = relationship(secondary=book_to_tag, back_populates='tags')
 
@@ -75,7 +76,8 @@ class Repository():
         #добавить другие сортировки
         sort_column = {BooksSortFields.name: BookRepo.title}[sort_by]
 
-        sql = select(BookRepo).order_by(sort_column.desc()).options(joinedload(BookRepo.author), joinedload(BookRepo.genres), joinedload(BookRepo.tags))
+        sql = select(BookRepo).order_by(sort_column.desc()).options(
+            joinedload(BookRepo.author), joinedload(BookRepo.genres), joinedload(BookRepo.tags))
         if genres:
             genre_conditions = [BookRepo.genres.any(GenreRepo.id == gid) for gid in genres]
             sql = sql.where(and_(*genre_conditions))
