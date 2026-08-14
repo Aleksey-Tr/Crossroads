@@ -22,6 +22,10 @@ class BooksSortFields(Enum):
     name = "name"
     default = name
 
+class GenreModel(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str = Field(max_length=64)
 
 class BookModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -29,7 +33,9 @@ class BookModel(BaseModel):
     author_id: int
     title: str
     description: str
+
     author_name: str
+    genres: list[GenreModel]
 
     @model_validator(mode="before")
     def getAuthorAnime(data):
@@ -38,11 +44,13 @@ class BookModel(BaseModel):
         else:
             data.author_name = "-"
         return data
+    @model_validator(mode='before')
+    def getGenres(data):
+        genres = list()
+        if data.genres:
+            genres = [GenreModel.model_validate(genre) for genre in data.genres]
+        return data
 
-class GenreModel(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id: int
-    name: str = Field(max_length=64)
 
 class RegisterForm(BaseModel):
     login: str = Field(max_length=32)

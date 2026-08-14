@@ -59,14 +59,20 @@ class Repository():
         engine = create_engine(self.url)
         self.session = sessionmaker(engine)
 
-    def get_books(self, search: str, sortBy:BooksSortFields = BooksSortFields.default) -> list[BookRepo]:
+    def get_books(self, search: str, genres: list[int], sort_by:BooksSortFields = BooksSortFields.default) -> list[BookRepo]:
 
         #добавить другие сортировки
-        sort_column = {BooksSortFields.name: BookRepo.title}[sortBy]
+        sort_column = {BooksSortFields.name: BookRepo.title}[sort_by]
+
+        sql = select(BookRepo).order_by(sort_column.desc()).options(joinedload(BookRepo.author), joinedload(BookRepo.genres))
+        if genres:
+            genre_conditions = [BookRepo.genres.any(GenreRepo.id == gid) for gid in genres]
+            sql = sql.where(and_(*genre_conditions))
+        if search:
+            sql = sql.where(BookRepo.title.ilike(f'%{search}%'))
 
         with self.session() as sess:
-            sql = select(BookRepo).where(BookRepo.title.ilike(f'%{search}%')).order_by(sort_column.desc()).options(joinedload(BookRepo.author))
-            result = sess.scalars(sql).all()
+            result = sess.scalars(sql).unique().all()
         return result
 
     def get_book_by_id(self, id: int) -> BookRepo|None:

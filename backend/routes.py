@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Query
 from models import BookModel, BooksSortFields, ChapterFullModel, ChapterShortModel, RegisterForm, LoginForm, GenreModel
 from repository import repo
 from auth import password_to_hash, verify_password
@@ -30,8 +30,8 @@ def create_book():
     ...
 
 @router.get('/books')
-def get_books(search: str = "", sort_by: BooksSortFields = BooksSortFields.default) -> list[BookModel]:
-    books_orm = repo.get_books(search, sort_by)
+def get_books(search: str = "", genres: list[int] = Query(default=[]), sort_by: BooksSortFields = BooksSortFields.default) -> list[BookModel]:
+    books_orm = repo.get_books(search, genres, sort_by)
     books = [BookModel.model_validate(book_orm) for book_orm in books_orm]
         
     return books
