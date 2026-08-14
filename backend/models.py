@@ -2,9 +2,9 @@ from enum import Enum
 from pydantic import BaseModel, ConfigDict, model_validator, computed_field, Field
 
 
-class CharacterShortModel(BaseModel):
+class ChapterShortModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: int = Field(validation_alias='character_id')
+    id: int = Field(validation_alias='chapter_id')
     title: str|None
 
     @computed_field
@@ -12,7 +12,7 @@ class CharacterShortModel(BaseModel):
         return f'Глава {self.id}' + (f': {self.title}' if self.title else '')
 
 
-class CharacterFullModel(CharacterShortModel):
+class ChapterFullModel(ChapterShortModel):
     book_id: int
     content: str
 

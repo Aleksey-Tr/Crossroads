@@ -1,7 +1,6 @@
 from models import BooksSortFields
 from sqlalchemy import create_engine, ForeignKey, String, select, Text, and_
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, sessionmaker, joinedload, relationship, undefer
-from auth import password_to_hash, verify_password
 
 class Base(DeclarativeBase):
     pass
@@ -25,11 +24,11 @@ class BookBase(Base):
 
     author: Mapped[UserBase] = relationship()
 
-class CharacterBase(Base):
-    __tablename__ = 'characters'
+class ChapterBase(Base):
+    __tablename__ = 'chapters'
 
     book_id: Mapped[int] = mapped_column(ForeignKey('books.id'), primary_key=True)
-    character_id: Mapped[int] = mapped_column(primary_key=True)
+    chapter_id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String(16))
     content: Mapped[str] = mapped_column(Text, deferred=True)
 
@@ -57,18 +56,18 @@ class Repository():
             result = sess.scalars(sql).one_or_none()
         return result
 
-    def get_characters(self, book_id: int) -> list[CharacterBase]:
+    def get_chapters(self, book_id: int) -> list[ChapterBase]:
         with self.session() as sess:
-            sql = select(CharacterBase).where(CharacterBase.book_id == book_id)
+            sql = select(ChapterBase).where(ChapterBase.book_id == book_id)
             result = sess.scalars(sql).all()
 
         return result
 
-    def get_character_by_id(self, book_id: int, character_id: int) -> CharacterBase:
+    def get_chapter_by_id(self, book_id: int, chapter_id: int) -> ChapterBase:
         with self.session() as sess:
-            sql = select(CharacterBase).where(
-                and_(CharacterBase.book_id == book_id, CharacterBase.character_id == character_id)
-                ).options(undefer(CharacterBase.content))
+            sql = select(ChapterBase).where(
+                and_(ChapterBase.book_id == book_id, ChapterBase.chapter_id == chapter_id)
+                ).options(undefer(ChapterBase.content))
             result = sess.scalars(sql).one_or_none()
 
         return result
