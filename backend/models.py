@@ -27,6 +27,11 @@ class GenreModel(BaseModel):
     id: int
     name: str = Field(max_length=64)
 
+class TagModel(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str = Field(max_length=64)
+
 class BookModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
@@ -36,6 +41,7 @@ class BookModel(BaseModel):
 
     author_name: str
     genres: list[GenreModel]
+    tags: list[TagModel]
 
     @model_validator(mode="before")
     def getAuthorAnime(data):
@@ -49,6 +55,12 @@ class BookModel(BaseModel):
         genres = list()
         if data.genres:
             genres = [GenreModel.model_validate(genre) for genre in data.genres]
+        return data
+    @model_validator(mode='before')
+    def getTags(data):
+        tags = list()
+        if data.genres:
+            tags = [TagModel.model_validate(tag) for tag in data.tags]
         return data
 
 

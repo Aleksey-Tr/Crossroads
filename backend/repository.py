@@ -9,6 +9,9 @@ class Base(DeclarativeBase):
 book_to_genre = Table('book_to_genre', Base.metadata,
                       Column('book_id', ForeignKey('books.id')),
                       Column('genre_id', ForeignKey('genres.id')))
+book_to_tag = Table('book_to_tag', Base.metadata,
+                    Column('book_id', ForeignKey('books.id')),
+                    Column('tag_id', ForeignKey('tags.id')))
 
 class UserRepo(Base):
     __tablename__ = 'users'
@@ -32,6 +35,7 @@ class BookRepo(Base):
 
     author: Mapped[UserRepo] = relationship(back_populates='books')
     genres: Mapped[list['GenreRepo']] = relationship(secondary=book_to_genre, back_populates='books')
+    tags: Mapped[list['TagsRepo']] = relationship(secondary=book_to_tag, back_populates='books')
 
 class GenreRepo(Base):
     __tablename__ = 'genres'
@@ -41,7 +45,13 @@ class GenreRepo(Base):
 
     books: Mapped[list[BookRepo]] = relationship(secondary=book_to_genre, back_populates='genres')
 
+class TagsRepo(Base):
+    __tablename__ = 'tags'
 
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(64), unique=True)
+
+    books: Mapped[BookRepo] = relationship(secondary=book_to_tag, back_populates='tags')
 
 class ChapterRepo(Base):
     __tablename__ = 'chapters'
@@ -59,15 +69,19 @@ class Repository():
         engine = create_engine(self.url)
         self.session = sessionmaker(engine)
 
-    def get_books(self, search: str, genres: list[int], sort_by:BooksSortFields = BooksSortFields.default) -> list[BookRepo]:
+    def get_books(self, search: str, genres: list[int] = None,
+                  tags: list[int] = None, sort_by:BooksSortFields = BooksSortFields.default) -> list[BookRepo]:
 
         #добавить другие сортировки
         sort_column = {BooksSortFields.name: BookRepo.title}[sort_by]
 
-        sql = select(BookRepo).order_by(sort_column.desc()).options(joinedload(BookRepo.author), joinedload(BookRepo.genres))
+        sql = select(BookRepo).order_by(sort_column.desc()).options(joinedload(BookRepo.author), joinedload(BookRepo.genres), joinedload(BookRepo.tags))
         if genres:
             genre_conditions = [BookRepo.genres.any(GenreRepo.id == gid) for gid in genres]
             sql = sql.where(and_(*genre_conditions))
+        if tags:
+            tags_conditions = [BookRepo.tags.any(TagsRepo.id == tid) for tid in tags]
+            sql = sql.where(and_(*tags_conditions))
         if search:
             sql = sql.where(BookRepo.title.ilike(f'%{search}%'))
 
@@ -84,6 +98,12 @@ class Repository():
     def get_genres(self) -> list[GenreRepo]:
         with self.session() as sess:
             sql = select(GenreRepo)
+            result = sess.scalars(sql).all()
+        return result
+
+    def get_tags(self) -> list[TagsRepo]:
+        sql = select(TagsRepo)
+        with self.session() as sess:
             result = sess.scalars(sql).all()
         return result
 
