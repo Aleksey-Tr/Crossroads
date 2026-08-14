@@ -1,5 +1,5 @@
-from fastapi import FastAPI, HTTPException, status
-from models import BookModel, BooksSortFields, ChapterFullModel, ChapterShortModel, RegisterForm, LoginForm
+from fastapi import FastAPI, HTTPException, status, Query
+from models import BookModel, BooksSortFields, ChapterFullModel, ChapterShortModel, RegisterForm, LoginForm, GenreModel, TagModel
 from repository import repo
 from auth import password_to_hash, verify_password
 
@@ -30,8 +30,9 @@ def create_book():
     ...
 
 @router.get('/books')
-def get_books(search: str = "", sort_by: BooksSortFields = BooksSortFields.default) -> list[BookModel]:
-    books_orm = repo.get_books(search, sort_by)
+def get_books(search: str = "", genres: list[int] = Query(default=[]),
+              tags: list[int] = Query(default=[]), sort_by: BooksSortFields = BooksSortFields.default) -> list[BookModel]:
+    books_orm = repo.get_books(search=search, genres=genres, tags=tags, sort_by=sort_by, )
     books = [BookModel.model_validate(book_orm) for book_orm in books_orm]
         
     return books
@@ -44,6 +45,20 @@ def get_book_by_id(id: int) -> BookModel:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Книга не найдена')
         
     return BookModel.model_validate(book_orm)
+
+@router.get('/genres')
+def get_genres() -> list[GenreModel]:
+    genres_orm = repo.get_genres()
+    genres = [GenreModel.model_validate(genre_orm) for genre_orm in genres_orm]
+
+    return genres
+
+@router.get('/tags')
+def get_tags() -> list[TagModel]:
+    tags_orm = repo.get_tags()
+    tags = [TagModel.model_validate(tag) for tag in tags_orm]
+
+    return tags
 
 @router.post('/books/{book_id}/chapters')
 def create_chapter():
