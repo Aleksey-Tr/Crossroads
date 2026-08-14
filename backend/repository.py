@@ -1,3 +1,4 @@
+from config import database_url
 from models import BooksSortFields
 from sqlalchemy import create_engine, ForeignKey, String, select, Text, and_
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, sessionmaker, joinedload, relationship, undefer
@@ -36,7 +37,7 @@ class ChapterBase(Base):
 
 class Repository():
     def __init__(self):
-        self.url = 'postgresql+psycopg2://postgres:toor@localhost:5432/novels_test_db'
+        self.url = database_url
         engine = create_engine(self.url)
         self.session = sessionmaker(engine)
 
