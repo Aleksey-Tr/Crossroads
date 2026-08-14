@@ -7,9 +7,9 @@ CREATE DATABASE crossroads_db;
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     role VARCHAR(16) NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
-    login VARCHAR(32) UNIQUE NOT NULL,
-    nickname VARCHAR(32) UNIQUE NOT NULL,
-    hashed_password VARCHAR(255) NOT NULL
+    login VARCHAR(32) NOT NULL UNIQUE,
+    nickname VARCHAR(32) NOT NULL UNIQUE,
+    hashed_password VARCHAR(256) NOT NULL
 );
 
 CREATE TABLE books (
@@ -45,7 +45,7 @@ CREATE TABLE book_to_tag (
 CREATE TABLE chapters (
     book_id INTEGER NOT NULL REFERENCES books (id) ON DELETE CASCADE,
     chapter_id INTEGER NOT NULL,
-    title VARCHAR(16) NULL, --если есть нумерация глава 1, глава 2, то оставить NULL иначе NOT NULL
+    title VARCHAR(64) NULL, --если есть нумерация глава 1, глава 2, то оставить NULL иначе NOT NULL
     content TEXT NOT NULL,
     PRIMARY KEY (book_id, chapter_id)
 );

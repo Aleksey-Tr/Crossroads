@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, status
-from models import BookModel, BooksSortFields, ChapterFullModel, ChapterShortModel, RegisterForm, LoginForm
+from models import BookModel, BooksSortFields, ChapterFullModel, ChapterShortModel, RegisterForm, LoginForm, GenreModel
 from repository import repo
 from auth import password_to_hash, verify_password
 
@@ -44,6 +44,13 @@ def get_book_by_id(id: int) -> BookModel:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Книга не найдена')
         
     return BookModel.model_validate(book_orm)
+
+@router.get('/genres')
+def get_genres() -> list[GenreModel]:
+    genres_orm = repo.get_genres()
+    genres = [GenreModel.model_validate(genre_orm) for genre_orm in genres_orm]
+
+    return genres
 
 @router.post('/books/{book_id}/chapters')
 def create_chapter():

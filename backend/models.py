@@ -39,6 +39,11 @@ class BookModel(BaseModel):
             data.author_name = "-"
         return data
 
+class GenreModel(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str = Field(max_length=64)
+
 class RegisterForm(BaseModel):
     login: str = Field(max_length=32)
     raw_password: str = Field(max_length=16)
