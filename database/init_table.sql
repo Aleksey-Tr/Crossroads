@@ -20,6 +20,28 @@ CREATE TABLE books (
     published_at DATE
 );
 
+CREATE TABLE genres (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(64) UNIQUE
+);
+
+CREATE TABLE book_to_genre (
+    book_id INTEGER REFERENCES books (id),
+    genre_id INTEGER REFERENCES genres (id),
+    PRIMARY KEY (book_id, genre_id)
+);
+
+CREATE TABLE tags (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(64) UNIQUE
+);
+
+CREATE TABLE book_to_tag (
+    book_id INTEGER REFERENCES books (id),
+    tag_id INTEGER REFERENCES tags (id),
+    PRIMARY KEY (book_id, tag_id)
+);
+
 CREATE TABLE chapters (
     book_id INTEGER NOT NULL REFERENCES books (id) ON DELETE CASCADE,
     chapter_id INTEGER NOT NULL,
