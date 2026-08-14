@@ -1,8 +1,8 @@
-DROP DATABASE IF EXISTS novels_test_db;
+DROP DATABASE IF EXISTS crossroads_db;
 
-CREATE DATABASE novels_test_db;
+CREATE DATABASE crossroads_db;
 
-\c novels_test_db
+\c crossroads_db
 
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
@@ -14,16 +14,16 @@ CREATE TABLE users (
 
 CREATE TABLE books (
     id SERIAL PRIMARY KEY,
-    author_id INTEGER REFERENCES users (id) NOT NULL,
+    author_id INTEGER REFERENCES users (id) ON DELETE SET NULL,
     title VARCHAR(64) NOT NULL,
     description TEXT NULL,
     published_at DATE
 );
 
-CREATE TABLE characters (
-    book_id INTEGER NOT NULL REFERENCES books (id),
-    character_id INTEGER NOT NULL,
+CREATE TABLE chapters (
+    book_id INTEGER NOT NULL REFERENCES books (id) ON DELETE CASCADE,
+    chapter_id INTEGER NOT NULL,
     title VARCHAR(16) NULL, --если есть нумерация глава 1, глава 2, то оставить NULL иначе NOT NULL
     content TEXT NOT NULL,
-    PRIMARY KEY (book_id, character_id)
+    PRIMARY KEY (book_id, chapter_id)
 );

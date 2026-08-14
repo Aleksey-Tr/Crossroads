@@ -71,9 +71,9 @@ VALUES (
     );
 
 INSERT INTO
-    characters (
+    chapters (
         book_id,
-        character_id,
+        chapter_id,
         title,
         content
     )
