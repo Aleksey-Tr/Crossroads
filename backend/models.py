@@ -51,16 +51,11 @@ class SectionFullModel(SectionShortModel):
 
 class ChapterShortModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: int = Field(validation_alias='chapter_id')
-    title: str|None
-
-    @computed_field
-    def full_title(self) -> str:
-        return f'Глава {self.id}' + (f': {self.title}' if self.title else '')
-
+    id: int
+    title: str|None = Field(max_length=64)
 
 class ChapterFullModel(ChapterShortModel):
-    book_id: int
+    section_id: int
     content: str
 
 class RegisterForm(BaseModel):

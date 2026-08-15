@@ -144,20 +144,11 @@ class Repository():
             result = sess.scalars(sql).unique().one_or_none()
         return result
 
-    def get_chapters(self, book_id: int) -> list[ChaptersRepo]:
+    def get_chapter_by_id(self, chapter_id: int) -> ChaptersRepo:
+        sql = select(ChaptersRepo).where(ChaptersRepo.id == chapter_id).options(undefer(ChaptersRepo.content))
+        
         with self.session() as sess:
-            sql = select(ChaptersRepo).where(ChaptersRepo.book_id == book_id)
-            result = sess.scalars(sql).all()
-
-        return result
-
-    def get_chapter_by_id(self, book_id: int, chapter_id: int) -> ChaptersRepo:
-        with self.session() as sess:
-            sql = select(ChaptersRepo).where(
-                and_(ChaptersRepo.book_id == book_id, ChaptersRepo.chapter_id == chapter_id)
-                ).options(undefer(ChaptersRepo.content))
             result = sess.scalars(sql).one_or_none()
-
         return result
 
     def get_user_by_login(self, login: str) -> UsersRepo|None:

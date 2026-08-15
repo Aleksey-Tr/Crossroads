@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, status, Query
-from models import BookModel, BooksSortFields, ChapterShortModel, RegisterForm, LoginForm, GenreModel, TagModel, SectionFullModel
+from models import BookModel, BooksSortFields, RegisterForm, LoginForm, GenreModel, TagModel, SectionFullModel, ChapterFullModel
 from repository import repo
 from auth import password_to_hash, verify_password
 
@@ -77,6 +77,14 @@ def get_section_by_id(section_id: int) -> SectionFullModel:
     if not section_orm:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Часть книги не найдена')
     return SectionFullModel.model_validate(section_orm)
+
+@router.get('/chapters/{chapter_id}', responses={404: {'description': 'Глава с указанным ID не найдена'}})
+def get_chapter_by_id(chapter_id: int) -> ChapterFullModel:
+    chapter_orm = repo.get_chapter_by_id(chapter_id)
+    if not chapter_orm:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Глава с указанным ID не найдена')
+    return ChapterFullModel.model_validate(chapter_orm)
+
 
 
 # @router.post('/books/{book_id}/chapters')
