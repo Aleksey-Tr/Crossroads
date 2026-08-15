@@ -42,10 +42,31 @@ CREATE TABLE book_to_tag (
     PRIMARY KEY (book_id, tag_id)
 );
 
-CREATE TABLE chapters (
+CREATE TABLE sections (
+    id SERIAL PRIMARY KEY,
     book_id INTEGER NOT NULL REFERENCES books (id) ON DELETE CASCADE,
-    chapter_id INTEGER NOT NULL,
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    previous_section INTEGER NULL REFERENCES sections (id) ON DELETE SET NULL,
+    title VARCHAR(256) NOT NULL
+);
+
+CREATE INDEX idx_first_sections ON sections (book_id)
+WHERE
+    previous_section IS NULL;
+
+CREATE UNIQUE INDEX idx_one_first_default_per_book ON sections (book_id)
+where
+    previous_section IS NULL
+    AND is_default = TRUE;
+
+CREATE UNIQUE INDEX idx_one_default_per_section ON sections (previous_section)
+where
+    is_default = TRUE
+    AND previous_section IS NOT NULL;
+
+CREATE TABLE chapters (
+    id SERIAL PRIMARY KEY,
+    section_id INTEGER NOT NULL REFERENCES sections (id),
     title VARCHAR(64) NULL, --если есть нумерация глава 1, глава 2, то оставить NULL иначе NOT NULL
-    content TEXT NOT NULL,
-    PRIMARY KEY (book_id, chapter_id)
+    content TEXT NOT NULL
 );

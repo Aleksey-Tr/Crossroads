@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, status, Query
-from models import BookModel, BooksSortFields, ChapterFullModel, ChapterShortModel, RegisterForm, LoginForm, GenreModel, TagModel
+from models import BookModel, BooksSortFields, ChapterShortModel, RegisterForm, LoginForm, GenreModel, TagModel, SectionFullModel
 from repository import repo
 from auth import password_to_hash, verify_password
 
@@ -60,30 +60,49 @@ def get_tags() -> list[TagModel]:
 
     return tags
 
-@router.post('/books/{book_id}/chapters')
-def create_chapter():
-    ...
-
-@router.get('/books/{book_id}/chapters', responses={404: {'description': 'Книга с указанным ID не найдена'}})
-def get_chapters(book_id: int) -> list[ChapterShortModel]:
-    book = repo.get_book_by_id(book_id)
-    if not book:
+@router.get('/books/{book_id}/first-sections', responses={404: {'description': 'Книга или часть книги с указанным ID не найдена'}})
+def get_book_first_section(book_id: int) -> list[SectionFullModel]:
+    book_orm = repo.get_book_by_id(book_id)
+    if not book_orm:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Книга не найдена')
 
-    chapters_orm = repo.get_chapters(book_id)
-    chapters = [ChapterShortModel.model_validate(chapter_orm) for chapter_orm in chapters_orm]
+    sections_orm = repo.get_book_first_sections(book_id)
+    if not sections_orm:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Часть книги не найдена')
+    return [SectionFullModel.model_validate(section_orm) for section_orm in sections_orm]
 
-    return chapters
+@router.get('/sections/{section_id}', responses={404: {'description': 'Часть книги с указанным ID не найдена'}})
+def get_section_by_id(section_id: int) -> SectionFullModel:
+    section_orm = repo.get_section_by_id(section_id)
+    if not section_orm:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Часть книги не найдена')
+    return SectionFullModel.model_validate(section_orm)
 
-@router.get('/books/{book_id}/chapters/{chapter_id}', responses={404: {'description': 'Книга с указанным ID не найдена'}})
-def get_chapter(book_id: int, chapter_id: int) -> ChapterFullModel:
-    book = repo.get_book_by_id(book_id)
-    if not book:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Книга не найдена')
 
-    chapter_orm = repo.get_chapter_by_id(book_id, chapter_id)
-    if not chapter_orm:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Глава не найдена')
+# @router.post('/books/{book_id}/chapters')
+# def create_chapter():
+#     ...
 
-    chapter = ChapterFullModel.model_validate(chapter_orm)
-    return chapter
+# @router.get('/books/{book_id}/chapters', responses={404: {'description': 'Книга с указанным ID не найдена'}})
+# def get_chapters(book_id: int) -> list[ChapterShortModel]:
+#     book = repo.get_book_by_id(book_id)
+#     if not book:
+#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Книга не найдена')
+
+#     chapters_orm = repo.get_chapters(book_id)
+#     chapters = [ChapterShortModel.model_validate(chapter_orm) for chapter_orm in chapters_orm]
+
+#     return chapters
+
+# @router.get('/books/{book_id}/chapters/{chapter_id}', responses={404: {'description': 'Книга с указанным ID не найдена'}})
+# def get_chapter(book_id: int, chapter_id: int) -> ChapterFullModel:
+#     book = repo.get_book_by_id(book_id)
+#     if not book:
+#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Книга не найдена')
+
+#     chapter_orm = repo.get_chapter_by_id(book_id, chapter_id)
+#     if not chapter_orm:
+#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Глава не найдена')
+
+#     chapter = ChapterFullModel.model_validate(chapter_orm)
+#     return chapter

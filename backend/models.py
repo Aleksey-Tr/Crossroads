@@ -2,21 +2,6 @@ from enum import Enum
 from pydantic import BaseModel, ConfigDict, model_validator, computed_field, Field
 
 
-class ChapterShortModel(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id: int = Field(validation_alias='chapter_id')
-    title: str|None
-
-    @computed_field
-    def full_title(self) -> str:
-        return f'Глава {self.id}' + (f': {self.title}' if self.title else '')
-
-
-class ChapterFullModel(ChapterShortModel):
-    book_id: int
-    content: str
-
-
 class BooksSortFields(Enum):
     date = "date"
     name = "name"
@@ -41,8 +26,8 @@ class BookModel(BaseModel):
     #published_at
 
     author_name: str
-    genres: list[GenreModel]
-    tags: list[TagModel]
+    genres: list[GenreModel] = list()
+    tags: list[TagModel] = list()
 
     @model_validator(mode="before")
     def getAuthorAnime(data):
@@ -52,6 +37,31 @@ class BookModel(BaseModel):
             data.author_name = "-"
         return data
 
+class SectionShortModel(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    is_default: bool
+    title: str = Field(max_length=256)
+    
+class SectionFullModel(SectionShortModel):
+    chapters: list['ChapterShortModel'] = []
+    next_sections: list[SectionShortModel] = []
+    book_id: int
+    previous_section: int|None = None
+
+class ChapterShortModel(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int = Field(validation_alias='chapter_id')
+    title: str|None
+
+    @computed_field
+    def full_title(self) -> str:
+        return f'Глава {self.id}' + (f': {self.title}' if self.title else '')
+
+
+class ChapterFullModel(ChapterShortModel):
+    book_id: int
+    content: str
 
 class RegisterForm(BaseModel):
     login: str = Field(max_length=32)

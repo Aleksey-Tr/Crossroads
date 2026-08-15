@@ -13,7 +13,7 @@ book_to_tag = Table('book_to_tag', Base.metadata,
                     Column('book_id', ForeignKey('books.id')),
                     Column('tag_id', ForeignKey('tags.id')))
 
-class UserRepo(Base):
+class UsersRepo(Base):
     __tablename__ = 'users'
     
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -22,29 +22,30 @@ class UserRepo(Base):
     nickname: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
     hashed_password: Mapped[str] = mapped_column(String(256), nullable=False)
 
-    books = relationship('BookRepo', back_populates='author')
+    books = relationship('BooksRepo', back_populates='author')
 
 
-class BookRepo(Base):
+class BooksRepo(Base):
     __tablename__ = 'books'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    author_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=True)
+    author_id: Mapped[int|None] = mapped_column(ForeignKey('users.id'), nullable=True)
     title: Mapped[str] = mapped_column(String(64), nullable=False)
-    description: Mapped[str] = mapped_column(nullable=True)
+    description: Mapped[str|None] = mapped_column(nullable=True)
     #published_at
 
-    author: Mapped[UserRepo] = relationship(back_populates='books')
-    genres: Mapped[list['GenreRepo']] = relationship(secondary=book_to_genre, back_populates='books')
+    author: Mapped[UsersRepo] = relationship(back_populates='books')
+    genres: Mapped[list['GenresRepo']] = relationship(secondary=book_to_genre, back_populates='books')
     tags: Mapped[list['TagsRepo']] = relationship(secondary=book_to_tag, back_populates='books')
+    sections: Mapped['SectionsRepo'] = relationship(back_populates='book')
 
-class GenreRepo(Base):
+class GenresRepo(Base):
     __tablename__ = 'genres'
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
 
-    books: Mapped[list[BookRepo]] = relationship(secondary=book_to_genre, back_populates='genres')
+    books: Mapped[list[BooksRepo]] = relationship(secondary=book_to_genre, back_populates='genres')
 
 class TagsRepo(Base):
     __tablename__ = 'tags'
@@ -52,15 +53,30 @@ class TagsRepo(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
 
-    books: Mapped[BookRepo] = relationship(secondary=book_to_tag, back_populates='tags')
+    books: Mapped[BooksRepo] = relationship(secondary=book_to_tag, back_populates='tags')
 
-class ChapterRepo(Base):
+class SectionsRepo(Base):
+    __tablename__ = 'sections'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    book_id: Mapped[int] = mapped_column(ForeignKey('books.id'), nullable=False)
+    is_default: Mapped[bool] = mapped_column(nullable=False, default=False)
+    previous_section: Mapped[int|None] = mapped_column(ForeignKey('sections.id'), nullable=True)
+    title: Mapped[str] = mapped_column(String(256), nullable=False)
+
+    book: Mapped[BooksRepo] = relationship(back_populates='sections')
+    chapters: Mapped[list['ChaptersRepo']] = relationship(back_populates='section')
+    next_sections: Mapped[list['SectionsRepo']] = relationship()
+
+class ChaptersRepo(Base):
     __tablename__ = 'chapters'
 
-    book_id: Mapped[int] = mapped_column(ForeignKey('books.id'), primary_key=True)
-    chapter_id: Mapped[int] = mapped_column(primary_key=True)
-    title: Mapped[str] = mapped_column(String(64))
-    content: Mapped[str] = mapped_column(Text, deferred=True, nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    section_id: Mapped[int] = mapped_column(ForeignKey('sections.id'), nullable=False)
+    title: Mapped[str|None] = mapped_column(String(64), nullable=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False, deferred=True)
+
+    section: Mapped[SectionsRepo] = relationship(back_populates='chapters')
 
 
 
@@ -71,36 +87,36 @@ class Repository():
         self.session = sessionmaker(engine)
 
     def get_books(self, search: str, genres: list[int] = None,
-                  tags: list[int] = None, sort_by:BooksSortFields = BooksSortFields.default) -> list[BookRepo]:
+                  tags: list[int] = None, sort_by:BooksSortFields = BooksSortFields.default) -> list[BooksRepo]:
 
         #добавить другие сортировки
-        sort_column = {BooksSortFields.name: BookRepo.title}[sort_by]
+        sort_column = {BooksSortFields.name: BooksRepo.title}[sort_by]
 
-        sql = select(BookRepo).order_by(sort_column.desc()).options(
-            joinedload(BookRepo.author), joinedload(BookRepo.genres), joinedload(BookRepo.tags))
+        sql = select(BooksRepo).order_by(sort_column.desc()).options(
+            joinedload(BooksRepo.author), joinedload(BooksRepo.genres), joinedload(BooksRepo.tags))
         if genres:
-            genre_conditions = [BookRepo.genres.any(GenreRepo.id == gid) for gid in genres]
+            genre_conditions = [BooksRepo.genres.any(GenresRepo.id == gid) for gid in genres]
             sql = sql.where(and_(*genre_conditions))
         if tags:
-            tags_conditions = [BookRepo.tags.any(TagsRepo.id == tid) for tid in tags]
+            tags_conditions = [BooksRepo.tags.any(TagsRepo.id == tid) for tid in tags]
             sql = sql.where(and_(*tags_conditions))
         if search:
-            sql = sql.where(BookRepo.title.ilike(f'%{search}%'))
+            sql = sql.where(BooksRepo.title.ilike(f'%{search}%'))
 
         with self.session() as sess:
             result = sess.scalars(sql).unique().all()
         return result
 
-    def get_book_by_id(self, id: int) -> BookRepo|None:
+    def get_book_by_id(self, id: int) -> BooksRepo|None:
         with self.session() as sess:
-            sql = select(BookRepo).where(BookRepo.id == id).options(
-            joinedload(BookRepo.author), joinedload(BookRepo.genres), joinedload(BookRepo.tags))
+            sql = select(BooksRepo).where(BooksRepo.id == id).options(
+            joinedload(BooksRepo.author), joinedload(BooksRepo.genres), joinedload(BooksRepo.tags))
             result = sess.scalars(sql).unique().one_or_none()
         return result
 
-    def get_genres(self) -> list[GenreRepo]:
+    def get_genres(self) -> list[GenresRepo]:
         with self.session() as sess:
-            sql = select(GenreRepo)
+            sql = select(GenresRepo)
             result = sess.scalars(sql).all()
         return result
 
@@ -110,31 +126,49 @@ class Repository():
             result = sess.scalars(sql).all()
         return result
 
-    def get_chapters(self, book_id: int) -> list[ChapterRepo]:
+    def get_book_first_sections(self, book_id: int) -> list[SectionsRepo]:
+        sql = select(SectionsRepo).where(
+            SectionsRepo.book_id == book_id,
+            SectionsRepo.previous_section.is_(None)).options(
+                joinedload(SectionsRepo.chapters), joinedload(SectionsRepo.next_sections))
+
         with self.session() as sess:
-            sql = select(ChapterRepo).where(ChapterRepo.book_id == book_id)
+            result = sess.scalars(sql).unique().all()
+        return result
+
+    def get_section_by_id(self, section_id: int) -> SectionsRepo|None:
+        sql = select(SectionsRepo).where(SectionsRepo.id == section_id).options(
+            joinedload(SectionsRepo.chapters), joinedload(SectionsRepo.next_sections))
+
+        with self.session() as sess:
+            result = sess.scalars(sql).unique().one_or_none()
+        return result
+
+    def get_chapters(self, book_id: int) -> list[ChaptersRepo]:
+        with self.session() as sess:
+            sql = select(ChaptersRepo).where(ChaptersRepo.book_id == book_id)
             result = sess.scalars(sql).all()
 
         return result
 
-    def get_chapter_by_id(self, book_id: int, chapter_id: int) -> ChapterRepo:
+    def get_chapter_by_id(self, book_id: int, chapter_id: int) -> ChaptersRepo:
         with self.session() as sess:
-            sql = select(ChapterRepo).where(
-                and_(ChapterRepo.book_id == book_id, ChapterRepo.chapter_id == chapter_id)
-                ).options(undefer(ChapterRepo.content))
+            sql = select(ChaptersRepo).where(
+                and_(ChaptersRepo.book_id == book_id, ChaptersRepo.chapter_id == chapter_id)
+                ).options(undefer(ChaptersRepo.content))
             result = sess.scalars(sql).one_or_none()
 
         return result
 
-    def get_user_by_login(self, login: str) -> UserRepo|None:
+    def get_user_by_login(self, login: str) -> UsersRepo|None:
         with self.session() as sess:
-            sql = select(UserRepo).where(UserRepo.login == login)
+            sql = select(UsersRepo).where(UsersRepo.login == login)
             result = sess.scalars(sql).one_or_none()
 
         return result
 
     def create_user(self, login: str, hashed_password: str):
-        new_user = UserRepo(login=login, hashed_password=hashed_password, nickname=login)
+        new_user = UsersRepo(login=login, hashed_password=hashed_password, nickname=login)
         with self.session() as sess:
             sess.add(new_user)
             sess.commit()
