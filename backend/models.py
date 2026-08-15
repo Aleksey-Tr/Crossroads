@@ -51,20 +51,6 @@ class BookModel(BaseModel):
         else:
             data.author_name = "-"
         return data
-    @model_validator(mode='before')
-    def getGenres(data):
-        if data.genres:
-            data.genres = [GenreModel.model_validate(genre) for genre in data.genres]
-        else:
-            data.genres = None
-        return data
-    @model_validator(mode='before')
-    def getTags(data):
-        if data.genres:
-            data.tags = [TagModel.model_validate(tag) for tag in data.tags]
-        else:
-            data.tags = None
-        return data
 
 
 class RegisterForm(BaseModel):

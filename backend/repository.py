@@ -93,8 +93,9 @@ class Repository():
 
     def get_book_by_id(self, id: int) -> BookRepo|None:
         with self.session() as sess:
-            sql = select(BookRepo).where(BookRepo.id == id).options(joinedload(BookRepo.author))
-            result = sess.scalars(sql).one_or_none()
+            sql = select(BookRepo).where(BookRepo.id == id).options(
+            joinedload(BookRepo.author), joinedload(BookRepo.genres), joinedload(BookRepo.tags))
+            result = sess.scalars(sql).unique().one_or_none()
         return result
 
     def get_genres(self) -> list[GenreRepo]:
