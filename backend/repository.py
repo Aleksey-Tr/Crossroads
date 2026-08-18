@@ -73,7 +73,7 @@ class ChaptersRepo(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     section_id: Mapped[int] = mapped_column(ForeignKey('sections.id'), nullable=False)
-    title: Mapped[str|None] = mapped_column(String(64), nullable=True)
+    title: Mapped[str|None] = mapped_column(String(64), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False, deferred=True)
 
     section: Mapped[SectionsRepo] = relationship(back_populates='chapters')

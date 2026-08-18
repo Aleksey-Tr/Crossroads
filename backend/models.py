@@ -52,7 +52,7 @@ class SectionFullModel(SectionShortModel):
 class ChapterShortModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    title: str|None = Field(max_length=64)
+    title: str = Field(max_length=64)
 
 class ChapterFullModel(ChapterShortModel):
     section_id: int

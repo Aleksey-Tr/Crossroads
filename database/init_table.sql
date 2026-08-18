@@ -67,6 +67,6 @@ where
 CREATE TABLE chapters (
     id SERIAL PRIMARY KEY,
     section_id INTEGER NOT NULL REFERENCES sections (id),
-    title VARCHAR(64) NULL, --если есть нумерация глава 1, глава 2, то оставить NULL иначе NOT NULL
+    title VARCHAR(64) NOT NULL,
     content TEXT NOT NULL
 );
