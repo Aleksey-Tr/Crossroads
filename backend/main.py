@@ -1,6 +1,11 @@
 from routes import router
+from fastapi.middleware.cors import CORSMiddleware
+
+origins = ['http://localhost:5000']
+
 
 app = router
+app.add_middleware(CORSMiddleware, allow_origins=origins)
 
 if __name__=='__main__':
     from uvicorn import run
