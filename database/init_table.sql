@@ -17,7 +17,7 @@ CREATE TABLE books (
     author_id INTEGER NULL REFERENCES users (id) ON DELETE SET NULL,
     title VARCHAR(64) NOT NULL,
     description TEXT NULL,
-    published_at DATE NOT NULL DEFAULT CURRENT_DATE
+    published_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
 CREATE TABLE genres (

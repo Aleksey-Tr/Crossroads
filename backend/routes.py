@@ -31,7 +31,7 @@ def create_book():
 
 @router.get('/books')
 def get_books(search: str = "", genres: list[int] = Query(default=[]),
-              tags: list[int] = Query(default=[]), sort_by: BooksSortFields = BooksSortFields.default) -> list[BookModel]:
+              tags: list[int] = Query(default=[]), sort_by: BooksSortFields|None = None) -> list[BookModel]:
     books_orm = repo.get_books(search=search, genres=genres, tags=tags, sort_by=sort_by, )
     books = [BookModel.model_validate(book_orm) for book_orm in books_orm]
         

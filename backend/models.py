@@ -1,11 +1,11 @@
+from datetime import datetime
 from enum import Enum
-from pydantic import BaseModel, ConfigDict, model_validator, computed_field, Field
+from pydantic import BaseModel, ConfigDict, model_validator, Field
 
 
 class BooksSortFields(Enum):
     date = "date"
     name = "name"
-    default = name
 
 class GenreModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -23,7 +23,7 @@ class BookModel(BaseModel):
     author_id: int|None
     title: str
     description: str|None
-    #published_at
+    published_at: datetime
 
     author_name: str
     genres: list[GenreModel] = list()

@@ -1,7 +1,8 @@
 from config import database_url
 from models import BooksSortFields
-from sqlalchemy import create_engine, ForeignKey, String, select, Text, and_, Table, Column
+from sqlalchemy import desc, asc, create_engine, ForeignKey, String, select, Text, and_, Table, Column
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, sessionmaker, joinedload, relationship, undefer
+from datetime import datetime
 
 class Base(DeclarativeBase):
     pass
@@ -32,7 +33,7 @@ class BooksRepo(Base):
     author_id: Mapped[int|None] = mapped_column(ForeignKey('users.id'), nullable=True)
     title: Mapped[str] = mapped_column(String(64), nullable=False)
     description: Mapped[str|None] = mapped_column(nullable=True)
-    #published_at
+    published_at: Mapped[datetime] = mapped_column(nullable=False)
 
     author: Mapped[UsersRepo] = relationship(back_populates='books')
     genres: Mapped[list['GenresRepo']] = relationship(secondary=book_to_genre, back_populates='books')
@@ -87,12 +88,12 @@ class Repository():
         self.session = sessionmaker(engine)
 
     def get_books(self, search: str, genres: list[int] = None,
-                  tags: list[int] = None, sort_by:BooksSortFields = BooksSortFields.default) -> list[BooksRepo]:
+                  tags: list[int] = None, sort_by:BooksSortFields|None = None) -> list[BooksRepo]:
 
         #добавить другие сортировки
-        sort_column = {BooksSortFields.name: BooksRepo.title}[sort_by]
+        sort_option = {BooksSortFields.name: asc(BooksRepo.title), BooksSortFields.date: desc(BooksRepo.published_at)}.get(sort_by, desc(BooksRepo.published_at))
 
-        sql = select(BooksRepo).order_by(sort_column.desc()).options(
+        sql = select(BooksRepo).order_by(sort_option).options(
             joinedload(BooksRepo.author), joinedload(BooksRepo.genres), joinedload(BooksRepo.tags))
         if genres:
             genre_conditions = [BooksRepo.genres.any(GenresRepo.id == gid) for gid in genres]
