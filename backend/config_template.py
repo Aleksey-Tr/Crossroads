@@ -1,1 +1,1 @@
-database_url = ''
+DB_URL = ''

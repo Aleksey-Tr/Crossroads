@@ -7,6 +7,22 @@ class BooksSortFields(Enum):
     date = "date"
     name = "name"
 
+class UserModel(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    role: str = Field(max_length=16)
+    login: str = Field(max_length=32)
+    nickname: str = Field(max_length=32)
+
+class RegisterForm(BaseModel):
+    login: str = Field(max_length=32)
+    nickname: str = Field(max_length=32)
+    raw_password: str = Field(max_length=16)
+
+class LoginForm(BaseModel):
+    login: str
+    password: str
+
 class GenreModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
@@ -57,11 +73,3 @@ class ChapterShortModel(BaseModel):
 class ChapterFullModel(ChapterShortModel):
     section_id: int
     content: str
-
-class RegisterForm(BaseModel):
-    login: str = Field(max_length=32)
-    raw_password: str = Field(max_length=16)
-
-class LoginForm(BaseModel):
-    login: str
-    password: str

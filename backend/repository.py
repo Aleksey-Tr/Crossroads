@@ -1,4 +1,4 @@
-from config import database_url
+from config import DB_URL
 from models import BooksSortFields
 from sqlalchemy import desc, asc, create_engine, ForeignKey, String, select, Text, and_, Table, Column
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, sessionmaker, joinedload, relationship, undefer
@@ -21,10 +21,9 @@ class UsersRepo(Base):
     role: Mapped[str] = mapped_column(String(16) ,default='user', nullable=False)
     login: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
     nickname: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
-    hashed_password: Mapped[str] = mapped_column(String(256), nullable=False)
+    hashed_password: Mapped[str] = mapped_column(String(256), nullable=False, deferred=True)
 
     books = relationship('BooksRepo', back_populates='author')
-
 
 class BooksRepo(Base):
     __tablename__ = 'books'
@@ -80,10 +79,9 @@ class ChaptersRepo(Base):
     section: Mapped[SectionsRepo] = relationship(back_populates='chapters')
 
 
-
 class Repository():
     def __init__(self):
-        self.url = database_url
+        self.url = DB_URL
         engine = create_engine(self.url)
         self.session = sessionmaker(engine)
 
@@ -121,11 +119,39 @@ class Repository():
             result = sess.scalars(sql).all()
         return result
 
+    def get_genre_by_name(self, genre_name: str) -> GenresRepo|None:
+        sql = select(GenresRepo).where(GenresRepo.name == genre_name)
+        with self.session() as sess:
+            result = sess.scalars(sql).one_or_none()
+        return result
+
+    def create_genre(self, genre_name: str) -> GenresRepo:
+        new_genre = GenresRepo(name=genre_name)
+        with self.session() as sess:
+            sess.add(new_genre)
+            sess.commit()
+            sess.refresh(new_genre)
+        return new_genre
+
     def get_tags(self) -> list[TagsRepo]:
         sql = select(TagsRepo)
         with self.session() as sess:
             result = sess.scalars(sql).all()
         return result
+
+    def get_tag_by_name(self, tag_name: str) -> TagsRepo|None:
+        sql = select(TagsRepo).where(TagsRepo.name == tag_name)
+        with self.session() as sess:
+            result = sess.scalars(sql).one_or_none()
+        return result
+
+    def create_tag(self, tag_name: str) -> TagsRepo:
+        new_tag = TagsRepo(name=tag_name)
+        with self.session() as sess:
+            sess.add(new_tag)
+            sess.commit()
+            sess.refresh(new_tag)
+        return new_tag
 
     def get_book_first_sections(self, book_id: int) -> list[SectionsRepo]:
         sql = select(SectionsRepo).where(
@@ -154,12 +180,11 @@ class Repository():
 
     def get_user_by_login(self, login: str) -> UsersRepo|None:
         with self.session() as sess:
-            sql = select(UsersRepo).where(UsersRepo.login == login)
+            sql = select(UsersRepo).where(UsersRepo.login == login).options(undefer(UsersRepo.hashed_password))
             result = sess.scalars(sql).one_or_none()
-
         return result
 
-    def create_user(self, login: str, hashed_password: str):
+    def create_user(self, login: str, hashed_password: str) -> UsersRepo:
         new_user = UsersRepo(login=login, hashed_password=hashed_password, nickname=login)
         with self.session() as sess:
             sess.add(new_user)

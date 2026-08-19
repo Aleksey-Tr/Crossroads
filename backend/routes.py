@@ -1,29 +1,35 @@
-from fastapi import FastAPI, HTTPException, status, Query
-from models import BookModel, BooksSortFields, RegisterForm, LoginForm, GenreModel, TagModel, SectionFullModel, ChapterFullModel
+from fastapi import FastAPI, HTTPException, status, Query, Depends
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from models import BookModel, BooksSortFields, RegisterForm, LoginForm, GenreModel, TagModel, SectionFullModel, ChapterFullModel, UserModel
 from repository import repo
-from auth import password_to_hash, verify_password
+from auth import password_to_hash, verify_password, create_jwt, verify_jwt
 
+bearer_cheme = HTTPBearer()
 router = FastAPI()
 
-@router.post('/auth/login',responses={401: {'description': 'Неверный логин или пароль'}})
+@router.post('/register', responses={409: {'description': 'Данный логин занят'}})
+def register(form: RegisterForm) -> UserModel:
+    is_user_exists = repo.get_user_by_login(form.login)
+    if is_user_exists:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Данный логин занят')
+
+    new_user = repo.create_user(form.login, password_to_hash(form.raw_password))
+    return UserModel.model_validate(new_user)
+
+@router.post('/login', responses={401: {'description': 'Неверный логин или пароль'}})
 def login(form: LoginForm):
     user = repo.get_user_by_login(form.login)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Неверный логин или пароль')
 
     if verify_password(form.password, user.hashed_password):
-        return 'успешный логин' #добавить токен
+        jwt_token = create_jwt(UserModel.model_validate(user))
+        return {"access_token": jwt_token, 'token_type': 'bearer'}
 
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Неверный логин или пароль')
 
-@router.post('/auth/register', responses={409: {'description': 'Данный логин занят'}})
-def register(form: RegisterForm):
-    is_user_exists = repo.get_user_by_login(form.login)
-    if is_user_exists:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Данный логин занят')
-
-    new_user = repo.create_user(form.login, password_to_hash(form.raw_password))
-    return f"Пользователь с логином {new_user.login} создан"
+def get_user_by_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_cheme)) -> UserModel|None:
+    return verify_jwt(credentials.credentials)
 
 @router.post('/books')
 def create_book():
@@ -53,12 +59,34 @@ def get_genres() -> list[GenreModel]:
 
     return genres
 
+@router.post('/genres', responses={403: {'description': 'Недостаточно прав'},
+                                 409: {'description': 'Такой жанр уже существует'}})
+def create_genre(genre_name: str, user: UserModel|None = Depends(get_user_by_token)) -> TagModel:
+    if user and user.role == 'admin':
+        if repo.get_genre_by_name(genre_name):
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Такой жанр уже существует')
+        
+        new_genre = repo.create_genre(genre_name)
+        return new_genre
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Недостаточно прав')
+
 @router.get('/tags')
 def get_tags() -> list[TagModel]:
     tags_orm = repo.get_tags()
     tags = [TagModel.model_validate(tag) for tag in tags_orm]
 
     return tags
+
+@router.post('/tags', responses={403: {'description': 'Недостаточно прав'},
+                                 409: {'description': 'Такой тег уже существует'}})
+def create_tag(tag_name: str, user: UserModel|None = Depends(get_user_by_token)) -> TagModel:
+    if user and user.role == 'admin':
+        if repo.get_tag_by_name(tag_name):
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Такой тег уже существует')
+        
+        new_tag = repo.create_tag(tag_name)
+        return new_tag
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Недостаточно прав')
 
 @router.get('/books/{book_id}/first-sections', responses={404: {'description': 'Книга или часть книги с указанным ID не найдена'}})
 def get_book_first_section(book_id: int) -> list[SectionFullModel]:
