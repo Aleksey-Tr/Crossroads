@@ -23,13 +23,22 @@ def login(form: LoginForm, response: Response):
 
     if verify_password(form.password, user.hashed_password):
         jwt_token = create_jwt(UserModel.model_validate(user))
-        response.set_cookie(key='access_token', value=jwt_token, httponly=True, secure=True, samesite='strict', max_age=30)
+        response.set_cookie(key='access_token', value=jwt_token, httponly=True, secure=True, samesite='strict', max_age=30*24*60*60)
         return {'message': 'Успешный вход'}
 
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Неверный логин или пароль')
 
-def get_user_by_token(request: Request) -> UserModel|None:
-    return verify_jwt(request.cookies.get('access_token'))
+def get_user_by_token(request: Request) -> UserModel:
+    token = request.cookies.get('access_token')
+    if token:
+        user = verify_jwt(token)
+        if user:
+            return user
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Пользователь не авторизирован')
+    
+@router.get('/users/me')
+def get_me(user: UserModel = Depends(get_user_by_token)) -> UserModel:
+    return user
 
 @router.post('/books')
 def create_book():
@@ -62,7 +71,7 @@ def get_genres() -> list[GenreModel]:
 @router.post('/genres', responses={403: {'description': 'Недостаточно прав'},
                                  409: {'description': 'Такой жанр уже существует'}})
 def create_genre(genre_name: str, user: UserModel|None = Depends(get_user_by_token)) -> TagModel:
-    if user and user.role == 'admin':
+    if user.role == 'admin':
         if repo.get_genre_by_name(genre_name):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Такой жанр уже существует')
         
@@ -80,7 +89,7 @@ def get_tags() -> list[TagModel]:
 @router.post('/tags', responses={403: {'description': 'Недостаточно прав'},
                                  409: {'description': 'Такой тег уже существует'}})
 def create_tag(tag_name: str, user: UserModel|None = Depends(get_user_by_token)) -> TagModel:
-    if user and user.role == 'admin':
+    if user.role == 'admin':
         if repo.get_tag_by_name(tag_name):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Такой тег уже существует')
         

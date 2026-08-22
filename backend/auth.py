@@ -13,7 +13,7 @@ def verify_password(password_to_check: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(password_to_check.encode(), hashed_password.encode())
 
 def create_jwt(user: UserModel) -> str:
-    payload = user.model_dump()
+    payload = user.model_dump() #по хорошему добавить срок действия jwt
     return jwt.encode(payload=payload, key=SECRET_KEY, algorithm=ALGORITHM)
 
 def verify_jwt(jwt_token: str) -> UserModel|None:
