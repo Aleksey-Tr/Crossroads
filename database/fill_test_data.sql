@@ -34,7 +34,14 @@ VALUES (
         'reader_99',
         'Чтец Снов',
         '$2b$12$OixZaYVK1V6M1k73uQz1O.7W42vX9W6i6K6F7b8c9d0e1f2g3h4i9'
+    ),
+    (
+        'admin',
+        'string',
+        'string',
+        '$2b$12$PFVS1aKu79Y/j8rFFtUubeDehHyXCfslzHz4whY6VkGzXwhVzk/EW'
     );
+;
 
 INSERT INTO
     books (
