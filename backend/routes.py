@@ -1,10 +1,8 @@
-from fastapi import FastAPI, HTTPException, status, Query, Depends
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import FastAPI, HTTPException, status, Query, Depends, Request, Response
 from models import BookModel, BooksSortFields, RegisterForm, LoginForm, GenreModel, TagModel, SectionFullModel, ChapterFullModel, UserModel
 from repository import repo
 from auth import password_to_hash, verify_password, create_jwt, verify_jwt
 
-bearer_cheme = HTTPBearer()
 router = FastAPI()
 
 @router.post('/register', responses={409: {'description': 'Данный логин занят'}})
@@ -17,19 +15,20 @@ def register(form: RegisterForm) -> UserModel:
     return UserModel.model_validate(new_user)
 
 @router.post('/login', responses={401: {'description': 'Неверный логин или пароль'}})
-def login(form: LoginForm):
+def login(form: LoginForm, response: Response):
     user = repo.get_user_by_login(form.login)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Неверный логин или пароль')
 
     if verify_password(form.password, user.hashed_password):
         jwt_token = create_jwt(UserModel.model_validate(user))
-        return {"access_token": jwt_token, 'token_type': 'bearer'}
+        response.set_cookie(key='access_token', value=jwt_token, httponly=True, secure=True, samesite='strict', max_age=30)
+        return {'message': 'Успешный вход'}
 
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Неверный логин или пароль')
 
-def get_user_by_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_cheme)) -> UserModel|None:
-    return verify_jwt(credentials.credentials)
+def get_user_by_token(request: Request) -> UserModel|None:
+    return verify_jwt(request.cookies.get('access_token'))
 
 @router.post('/books')
 def create_book():
