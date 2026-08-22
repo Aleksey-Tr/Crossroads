@@ -24,7 +24,7 @@ def login(form: LoginForm, response: Response):
     if verify_password(form.password, user.hashed_password):
         jwt_token = create_jwt(UserModel.model_validate(user))
         response.set_cookie(key='access_token', value=jwt_token, httponly=True, secure=True, samesite='strict', max_age=30*24*60*60)
-        return {'message': 'Успешный вход'}
+        return {'detail': 'Успешный вход'}
 
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Неверный логин или пароль')
 
@@ -35,8 +35,17 @@ def get_user_by_token(request: Request) -> UserModel:
         if user:
             return user
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Пользователь не авторизирован')
-    
-@router.get('/users/me')
+
+@router.post('/logout', responses={401: {'description': 'Пользователь не авторизирован'}})
+def logout(response: Response, user = Depends(get_user_by_token)):
+    response.delete_cookie(
+        key="access_token",
+        httponly=True,
+        samesite="strict"
+    )
+    return {'detail': 'Выход выполнен'}
+
+@router.get('/users/me', responses={401: {'description': 'Пользователь не авторизирован'}})
 def get_me(user: UserModel = Depends(get_user_by_token)) -> UserModel:
     return user
 
