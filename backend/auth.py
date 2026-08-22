@@ -7,7 +7,7 @@ from models import UserModel
 hasher = CryptContext(schemes='bcrypt')
 
 def password_to_hash(password: str) -> str:
-    bcrypt.hashpw(password, bcrypt.gensalt()).decode()
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 def verify_password(password_to_check: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(password_to_check.encode(), hashed_password.encode())

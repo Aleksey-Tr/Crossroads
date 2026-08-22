@@ -11,7 +11,8 @@ def register(form: RegisterForm) -> UserModel:
     if is_user_exists:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Данный логин занят')
 
-    new_user = repo.create_user(form.login, password_to_hash(form.raw_password))
+    hashed_pass = password_to_hash(form.raw_password)
+    new_user = repo.create_user(login=form.login, hashed_password=hashed_pass)
     return UserModel.model_validate(new_user)
 
 @router.post('/login', responses={401: {'description': 'Неверный логин или пароль'}})
