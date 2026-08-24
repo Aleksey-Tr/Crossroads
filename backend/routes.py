@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, status, Query, Depends, Request, Response
-from models import BookModel, BooksSortFields, RegisterForm, LoginForm, GenreModel, TagModel, SectionFullModel, ChapterFullModel, UserModel
+from models import BookModel, BooksSortFields, RegisterForm, LoginForm, GenreModel, TagModel, SectionFullModel, ChapterFullModel, UserModel, BookCreateForm, BookUpdateForm
 from repository import repo
 from auth import password_to_hash, verify_password, create_jwt, verify_jwt
 
@@ -49,10 +49,6 @@ def logout(response: Response, user = Depends(get_user_by_token)):
 def get_me(user: UserModel = Depends(get_user_by_token)) -> UserModel:
     return user
 
-@router.post('/books')
-def create_book():
-    ...
-
 @router.get('/books')
 def get_books(search: str = "", genres: list[int] = Query(default=[]),
               tags: list[int] = Query(default=[]), sort_by: BooksSortFields|None = None) -> list[BookModel]:
@@ -70,6 +66,25 @@ def get_book_by_id(id: int) -> BookModel:
         
     return BookModel.model_validate(book_orm)
 
+@router.post('/books', responses={503: {'description': 'Не удалось обработать запрос'}})
+def create_book(form: BookCreateForm, user: UserModel = Depends(get_user_by_token)) -> BookModel:
+    new_book = repo.create_book(user_id=user.id, form=form)
+    if not new_book:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail='Не удалось обработать запрос. Попробуйте позже.')
+    
+    return new_book
+
+@router.patch('/books/{book_id}', responses={404: {'description': 'Книга не найдена'}, 403: {'description': 'Недостаточно прав'}})
+def update_book(book_id: int, form: BookUpdateForm, user: UserModel = Depends(get_user_by_token)) -> BookModel:
+    book = repo.get_book_by_id(book_id)
+    if not book:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Книга не найдена')
+    if book.author_id != user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Недостаточно прав')
+    
+    updated_book = repo.update_book(book_id=book_id, form=form)
+    return updated_book
+
 @router.get('/genres')
 def get_genres() -> list[GenreModel]:
     genres_orm = repo.get_genres()
@@ -79,7 +94,7 @@ def get_genres() -> list[GenreModel]:
 
 @router.post('/genres', responses={403: {'description': 'Недостаточно прав'},
                                  409: {'description': 'Такой жанр уже существует'}})
-def create_genre(genre_name: str, user: UserModel|None = Depends(get_user_by_token)) -> TagModel:
+def create_genre(genre_name: str, user: UserModel = Depends(get_user_by_token)) -> TagModel:
     if user.role == 'admin':
         if repo.get_genre_by_name(genre_name):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Такой жанр уже существует')
@@ -97,7 +112,7 @@ def get_tags() -> list[TagModel]:
 
 @router.post('/tags', responses={403: {'description': 'Недостаточно прав'},
                                  409: {'description': 'Такой тег уже существует'}})
-def create_tag(tag_name: str, user: UserModel|None = Depends(get_user_by_token)) -> TagModel:
+def create_tag(tag_name: str, user: UserModel = Depends(get_user_by_token)) -> TagModel:
     if user.role == 'admin':
         if repo.get_tag_by_name(tag_name):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Такой тег уже существует')
@@ -130,33 +145,3 @@ def get_chapter_by_id(chapter_id: int) -> ChapterFullModel:
     if not chapter_orm:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Глава с указанным ID не найдена')
     return ChapterFullModel.model_validate(chapter_orm)
-
-
-
-# @router.post('/books/{book_id}/chapters')
-# def create_chapter():
-#     ...
-
-# @router.get('/books/{book_id}/chapters', responses={404: {'description': 'Книга с указанным ID не найдена'}})
-# def get_chapters(book_id: int) -> list[ChapterShortModel]:
-#     book = repo.get_book_by_id(book_id)
-#     if not book:
-#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Книга не найдена')
-
-#     chapters_orm = repo.get_chapters(book_id)
-#     chapters = [ChapterShortModel.model_validate(chapter_orm) for chapter_orm in chapters_orm]
-
-#     return chapters
-
-# @router.get('/books/{book_id}/chapters/{chapter_id}', responses={404: {'description': 'Книга с указанным ID не найдена'}})
-# def get_chapter(book_id: int, chapter_id: int) -> ChapterFullModel:
-#     book = repo.get_book_by_id(book_id)
-#     if not book:
-#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Книга не найдена')
-
-#     chapter_orm = repo.get_chapter_by_id(book_id, chapter_id)
-#     if not chapter_orm:
-#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Глава не найдена')
-
-#     chapter = ChapterFullModel.model_validate(chapter_orm)
-#     return chapter

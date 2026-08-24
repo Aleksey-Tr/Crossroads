@@ -1,5 +1,5 @@
 from config import DB_URL
-from models import BooksSortFields
+from models import BooksSortFields, BookCreateForm, BookUpdateForm
 from sqlalchemy import desc, asc, create_engine, ForeignKey, String, select, Text, and_, Table, Column
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, sessionmaker, joinedload, relationship, undefer
 from datetime import datetime
@@ -32,7 +32,7 @@ class BooksRepo(Base):
     author_id: Mapped[int|None] = mapped_column(ForeignKey('users.id'), nullable=True)
     title: Mapped[str] = mapped_column(String(64), nullable=False)
     description: Mapped[str|None] = mapped_column(nullable=True)
-    published_at: Mapped[datetime] = mapped_column(nullable=False)
+    published_at: Mapped[datetime] = mapped_column(nullable=False, default=datetime.now())
 
     author: Mapped[UsersRepo] = relationship(back_populates='books')
     genres: Mapped[list['GenresRepo']] = relationship(secondary=book_to_genre, back_populates='books')
@@ -112,6 +112,51 @@ class Repository():
             joinedload(BooksRepo.author), joinedload(BooksRepo.genres), joinedload(BooksRepo.tags))
             result = sess.scalars(sql).unique().one_or_none()
         return result
+
+    def create_book(self, user_id, form: BookCreateForm) -> BooksRepo|None:
+        new_book = BooksRepo(author_id=user_id, title=form.title, description=form.description)
+        with self.session() as sess:
+            if form.genres:
+                sql = select(GenresRepo).where(GenresRepo.id.in_(form.genres))
+                genres = sess.scalars(sql).all()
+                new_book.genres.extend(genres)
+
+            if form.tags:
+                sql = select(TagsRepo).where(TagsRepo.id.in_(form.tags))
+                tags = sess.scalars(sql).all()
+                new_book.tags.extend(tags)
+
+            sess.add(new_book)
+            sess.commit()
+            sess.refresh(new_book)
+
+            sql = select(BooksRepo).where(BooksRepo.id == new_book.id).options(
+                joinedload(BooksRepo.author), joinedload(BooksRepo.genres), joinedload(BooksRepo.tags))
+            result = sess.scalars(sql).unique().one_or_none()
+        return result
+
+    def update_book(self, book_id: int, form: BookUpdateForm) -> BooksRepo|None:
+        with self.session() as sess:
+            sql = select(BooksRepo).where(BooksRepo.id == book_id).options(
+            joinedload(BooksRepo.author), joinedload(BooksRepo.genres), joinedload(BooksRepo.tags))
+            book = sess.scalars(sql).unique().one_or_none()
+            if not book:
+                return None
+
+            book.title = form.title if form.title else book.title
+            book.description = form.description if form.description else book.description
+            if form.genres:
+                sql = select(GenresRepo).where(GenresRepo.id.in_(form.genres))
+                genres = sess.scalars(sql).all()
+                book.genres = genres
+            if form.tags:
+                sql = select(TagsRepo).where(TagsRepo.id.in_(form.tags))
+                tags = sess.scalars(sql).all()
+                book.tags = tags
+
+            sess.commit()
+            sess.refresh(book)
+        return book
 
     def get_genres(self) -> list[GenresRepo]:
         with self.session() as sess:

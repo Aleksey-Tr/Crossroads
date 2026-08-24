@@ -33,18 +33,21 @@ class TagModel(BaseModel):
     id: int
     name: str = Field(max_length=64)
 
-class BookModel(BaseModel):
+class BookCreateForm(BaseModel):
+    title: str = Field(max_length=64)
+    description: str|None = None
+    genres: list[int]
+    tags: list[int]
+
+class BookModel(BookCreateForm):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    author_id: int|None
-    title: str
-    description: str|None
+    author_id: int|None = None
+    genres: list[GenreModel]
+    tags: list[TagModel]
     published_at: datetime
 
     author_name: str
-    genres: list[GenreModel] = list()
-    tags: list[TagModel] = list()
-
     @model_validator(mode="before")
     def getAuthorAnime(data):
         if data.author:
@@ -52,12 +55,19 @@ class BookModel(BaseModel):
         else:
             data.author_name = "-"
         return data
+    
+class BookUpdateForm(BaseModel):
+    title: str|None = Field(max_length=64, default=None)
+    description: str|None = None
+    genres: list[int]|None = None
+    tags: list[int]|None = None
 
 class SectionShortModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     is_default: bool
     title: str = Field(max_length=256)
+
     
 class SectionFullModel(SectionShortModel):
     chapters: list['ChapterShortModel'] = []
