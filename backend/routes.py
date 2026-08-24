@@ -1,10 +1,8 @@
-from fastapi import FastAPI, HTTPException, status, Query, Depends
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import FastAPI, HTTPException, status, Query, Depends, Request, Response
 from models import BookModel, BooksSortFields, RegisterForm, LoginForm, GenreModel, TagModel, SectionFullModel, ChapterFullModel, UserModel
 from repository import repo
 from auth import password_to_hash, verify_password, create_jwt, verify_jwt
 
-bearer_cheme = HTTPBearer()
 router = FastAPI()
 
 @router.post('/register', responses={409: {'description': 'Данный логин занят'}})
@@ -13,23 +11,43 @@ def register(form: RegisterForm) -> UserModel:
     if is_user_exists:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Данный логин занят')
 
-    new_user = repo.create_user(form.login, password_to_hash(form.raw_password))
+    hashed_pass = password_to_hash(form.raw_password)
+    new_user = repo.create_user(login=form.login, hashed_password=hashed_pass)
     return UserModel.model_validate(new_user)
 
 @router.post('/login', responses={401: {'description': 'Неверный логин или пароль'}})
-def login(form: LoginForm):
+def login(form: LoginForm, response: Response):
     user = repo.get_user_by_login(form.login)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Неверный логин или пароль')
 
     if verify_password(form.password, user.hashed_password):
         jwt_token = create_jwt(UserModel.model_validate(user))
-        return {"access_token": jwt_token, 'token_type': 'bearer'}
+        response.set_cookie(key='access_token', value=jwt_token, httponly=True, secure=True, samesite='strict', max_age=30*24*60*60)
+        return {'detail': 'Успешный вход'}
 
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Неверный логин или пароль')
 
-def get_user_by_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_cheme)) -> UserModel|None:
-    return verify_jwt(credentials.credentials)
+def get_user_by_token(request: Request) -> UserModel:
+    token = request.cookies.get('access_token')
+    if token:
+        user = verify_jwt(token)
+        if user:
+            return user
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Пользователь не авторизирован')
+
+@router.post('/logout', responses={401: {'description': 'Пользователь не авторизирован'}})
+def logout(response: Response, user = Depends(get_user_by_token)):
+    response.delete_cookie(
+        key="access_token",
+        httponly=True,
+        samesite="strict"
+    )
+    return {'detail': 'Выход выполнен'}
+
+@router.get('/users/me', responses={401: {'description': 'Пользователь не авторизирован'}})
+def get_me(user: UserModel = Depends(get_user_by_token)) -> UserModel:
+    return user
 
 @router.post('/books')
 def create_book():
@@ -62,7 +80,7 @@ def get_genres() -> list[GenreModel]:
 @router.post('/genres', responses={403: {'description': 'Недостаточно прав'},
                                  409: {'description': 'Такой жанр уже существует'}})
 def create_genre(genre_name: str, user: UserModel|None = Depends(get_user_by_token)) -> TagModel:
-    if user and user.role == 'admin':
+    if user.role == 'admin':
         if repo.get_genre_by_name(genre_name):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Такой жанр уже существует')
         
@@ -80,7 +98,7 @@ def get_tags() -> list[TagModel]:
 @router.post('/tags', responses={403: {'description': 'Недостаточно прав'},
                                  409: {'description': 'Такой тег уже существует'}})
 def create_tag(tag_name: str, user: UserModel|None = Depends(get_user_by_token)) -> TagModel:
-    if user and user.role == 'admin':
+    if user.role == 'admin':
         if repo.get_tag_by_name(tag_name):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Такой тег уже существует')
         
