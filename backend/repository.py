@@ -1,5 +1,5 @@
 from config import DB_URL
-from models import BooksSortFields, BookCreateForm, BookUpdateForm
+from models import BooksSortFields, BookCreateForm, BookUpdateForm, RegisterForm
 from sqlalchemy import desc, asc, create_engine, ForeignKey, String, select, Text, and_, Table, Column
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, sessionmaker, joinedload, relationship, undefer
 from datetime import datetime
@@ -235,13 +235,19 @@ class Repository():
         return result
 
     def get_user_by_login(self, login: str) -> UsersRepo|None:
+        sql = select(UsersRepo).where(UsersRepo.login == login).options(undefer(UsersRepo.hashed_password))
         with self.session() as sess:
-            sql = select(UsersRepo).where(UsersRepo.login == login).options(undefer(UsersRepo.hashed_password))
             result = sess.scalars(sql).one_or_none()
         return result
 
-    def create_user(self, login: str, hashed_password: str) -> UsersRepo:
-        new_user = UsersRepo(login=login, hashed_password=hashed_password, nickname=login)
+    def get_user_by_nickname(self, nickname: str) -> UsersRepo|None:
+        sql = select(UsersRepo).where(UsersRepo.nickname == nickname)
+        with self.session() as sess:
+            result = sess.scalars(sql).one_or_none()
+        return result        
+
+    def create_user(self, form: RegisterForm) -> UsersRepo:
+        new_user = UsersRepo(login=form.login, hashed_password=form.raw_password, nickname=form.nickname)
         with self.session() as sess:
             sess.add(new_user)
             sess.commit()

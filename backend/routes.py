@@ -5,14 +5,17 @@ from auth import password_to_hash, verify_password, create_jwt, verify_jwt
 
 router = FastAPI()
 
-@router.post('/register', responses={409: {'description': 'Данный логин занят'}})
+@router.post('/register', responses={409: {'description': 'Данный логин или имя заняты'}})
 def register(form: RegisterForm) -> UserModel:
-    is_user_exists = repo.get_user_by_login(form.login)
-    if is_user_exists:
+    is_login_exist = repo.get_user_by_login(form.login)
+    is_nickname_exist = repo.get_user_by_nickname(form.nickname)
+    if is_login_exist:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Данный логин занят')
+    if is_nickname_exist:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Данное имя занято')
 
     hashed_pass = password_to_hash(form.raw_password)
-    new_user = repo.create_user(login=form.login, hashed_password=hashed_pass)
+    new_user = repo.create_user(form)
     return UserModel.model_validate(new_user)
 
 @router.post('/login', responses={401: {'description': 'Неверный логин или пароль'}})

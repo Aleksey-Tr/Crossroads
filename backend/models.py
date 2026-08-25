@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from pydantic import BaseModel, ConfigDict, model_validator, Field
+from pydantic import BaseModel, ConfigDict, model_validator, Field, field_validator
 
 
 class BooksSortFields(Enum):
@@ -14,14 +14,22 @@ class UserModel(BaseModel):
     login: str = Field(max_length=32)
     nickname: str = Field(max_length=32)
 
-class RegisterForm(BaseModel):
-    login: str = Field(max_length=32)
-    nickname: str = Field(max_length=32)
-    raw_password: str = Field(max_length=16)
+disallowed_characters = [' ', ':', "'", '"']
 
+class RegisterForm(BaseModel):
+    login: str = Field(max_length=32, min_length=4)
+    nickname: str = Field(max_length=32, min_length=4)
+    raw_password: str = Field(max_length=16, min_length=6)
+
+    @field_validator('login', 'nickname', 'raw_password')
+    def check_fields(value: str):
+        if any((char in value for char in disallowed_characters)):
+            raise ValueError("Недопустимые символы: '"+"' '".join(disallowed_characters)+"'")
+        return value
+    
 class LoginForm(BaseModel):
-    login: str
-    password: str
+    login: str = Field(max_length=32, min_length=4)
+    password: str = Field(max_length=16, min_length=6)
 
 class GenreModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
