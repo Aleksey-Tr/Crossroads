@@ -246,6 +246,19 @@ class Repository():
             result = sess.scalars(sql).one_or_none()
         return result        
 
+    def get_user_by_id(self, user_id: int) -> UsersRepo|None:
+        sql = select(UsersRepo).where(UsersRepo.id == user_id)
+        with self.session() as sess:
+            result = sess.scalars(sql).one_or_none()
+        return result
+
+    def get_user_books(self, user_id: int):
+        sql = select(BooksRepo).where(BooksRepo.author_id == user_id).options(
+        joinedload(BooksRepo.author), joinedload(BooksRepo.genres), joinedload(BooksRepo.tags))
+        with self.session() as sess:
+            result = sess.scalars(sql).unique().all()
+        return result
+    
     def create_user(self, form: RegisterForm) -> UsersRepo:
         new_user = UsersRepo(login=form.login, hashed_password=form.raw_password, nickname=form.nickname)
         with self.session() as sess:

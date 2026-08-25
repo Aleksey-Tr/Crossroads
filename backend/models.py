@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from pydantic import BaseModel, ConfigDict, model_validator, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class BooksSortFields(Enum):
@@ -11,7 +11,7 @@ class UserModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     role: str = Field(max_length=16)
-    login: str = Field(max_length=32)
+    #login: str = Field(max_length=32)
     nickname: str = Field(max_length=32)
 
 disallowed_characters = [' ', ':', "'", '"']
@@ -50,19 +50,12 @@ class BookCreateForm(BaseModel):
 class BookModel(BookCreateForm):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    author_id: int|None = None
+    #author_id: int|None = None
     genres: list[GenreModel]
     tags: list[TagModel]
     published_at: datetime
 
-    author_name: str
-    @model_validator(mode="before")
-    def getAuthorAnime(data):
-        if data.author:
-            data.author_name = data.author.nickname
-        else:
-            data.author_name = "-"
-        return data
+    author: UserModel|None = None
     
 class BookUpdateForm(BaseModel):
     title: str|None = Field(max_length=64, default=None)

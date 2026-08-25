@@ -53,6 +53,22 @@ def logout(response: Response, user = Depends(get_user_by_token)):
 def get_me(user: UserModel = Depends(get_user_by_token)) -> UserModel:
     return user
 
+@router.get('/users/{user_id}', responses={404: {'description': 'Пользователь не найден'}})
+def get_user(user_id: int) -> UserModel:
+    user = repo.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Пользователь не найден')
+    return user
+
+@router.get('/users/{user_id}/books')
+def get_user_books(user_id: int) -> list[BookModel]:
+    user = repo.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Пользователь не найден')
+
+    books = repo.get_user_books(user_id)
+    return books
+
 @router.get('/books')
 def get_books(search: str = "", genres: list[int] = Query(default=[]),
               tags: list[int] = Query(default=[]), sort_by: BooksSortFields|None = None) -> list[BookModel]:
