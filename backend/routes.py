@@ -35,6 +35,7 @@ def get_user_by_token(request: Request) -> UserModel:
         if user:
             return user
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Пользователь не авторизирован')
+    #401: {'description': 'Пользователь не авторизирован'}
 
 @router.post('/logout', responses={401: {'description': 'Пользователь не авторизирован'}})
 def logout(response: Response, user = Depends(get_user_by_token)):
@@ -66,7 +67,8 @@ def get_book_by_id(id: int) -> BookModel:
         
     return BookModel.model_validate(book_orm)
 
-@router.post('/books', responses={503: {'description': 'Не удалось обработать запрос'}})
+@router.post('/books', responses={401: {'description': 'Пользователь не авторизирован'},
+                                  503: {'description': 'Не удалось обработать запрос'}})
 def create_book(form: BookCreateForm, user: UserModel = Depends(get_user_by_token)) -> BookModel:
     new_book = repo.create_book(user_id=user.id, form=form)
     if not new_book:
@@ -74,7 +76,9 @@ def create_book(form: BookCreateForm, user: UserModel = Depends(get_user_by_toke
     
     return new_book
 
-@router.patch('/books/{book_id}', responses={404: {'description': 'Книга не найдена'}, 403: {'description': 'Недостаточно прав'}})
+@router.patch('/books/{book_id}', responses={401: {'description': 'Пользователь не авторизирован'},
+                                             403: {'description': 'Недостаточно прав'},
+                                             404: {'description': 'Книга не найдена'}})
 def update_book(book_id: int, form: BookUpdateForm, user: UserModel = Depends(get_user_by_token)) -> BookModel:
     book = repo.get_book_by_id(book_id)
     if not book:
@@ -85,6 +89,19 @@ def update_book(book_id: int, form: BookUpdateForm, user: UserModel = Depends(ge
     updated_book = repo.update_book(book_id=book_id, form=form)
     return updated_book
 
+@router.delete('/books/{book_id}', responses={401: {'description': 'Пользователь не авторизирован'},
+                                              403: {'description': 'Недостаточно прав'},
+                                              404: {'description': 'Книга не найдена'}})
+def delete_book(book_id: int, user: UserModel = Depends(get_user_by_token)):
+    book = repo.get_simple_book(book_id)
+    if not book:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Книга не найдена')
+    if book.author_id != user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Недостаточно прав')
+
+    repo.delete_book(book)
+    return {'detail': 'Книга успешно удалена'}
+
 @router.get('/genres')
 def get_genres() -> list[GenreModel]:
     genres_orm = repo.get_genres()
@@ -92,8 +109,9 @@ def get_genres() -> list[GenreModel]:
 
     return genres
 
-@router.post('/genres', responses={403: {'description': 'Недостаточно прав'},
-                                 409: {'description': 'Такой жанр уже существует'}})
+@router.post('/genres', responses={401: {'description': 'Пользователь не авторизирован'},
+                                   403: {'description': 'Недостаточно прав'},
+                                   409: {'description': 'Такой жанр уже существует'}})
 def create_genre(genre_name: str, user: UserModel = Depends(get_user_by_token)) -> TagModel:
     if user.role == 'admin':
         if repo.get_genre_by_name(genre_name):
@@ -110,7 +128,8 @@ def get_tags() -> list[TagModel]:
 
     return tags
 
-@router.post('/tags', responses={403: {'description': 'Недостаточно прав'},
+@router.post('/tags', responses={401: {'description': 'Пользователь не авторизирован'},
+                                 403: {'description': 'Недостаточно прав'},
                                  409: {'description': 'Такой тег уже существует'}})
 def create_tag(tag_name: str, user: UserModel = Depends(get_user_by_token)) -> TagModel:
     if user.role == 'admin':

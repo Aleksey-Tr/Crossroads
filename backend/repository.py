@@ -107,10 +107,16 @@ class Repository():
         return result
 
     def get_book_by_id(self, id: int) -> BooksRepo|None:
+        sql = select(BooksRepo).where(BooksRepo.id == id).options(
+        joinedload(BooksRepo.author), joinedload(BooksRepo.genres), joinedload(BooksRepo.tags))
         with self.session() as sess:
-            sql = select(BooksRepo).where(BooksRepo.id == id).options(
-            joinedload(BooksRepo.author), joinedload(BooksRepo.genres), joinedload(BooksRepo.tags))
             result = sess.scalars(sql).unique().one_or_none()
+        return result
+    
+    def get_simple_book(self, book_id: int) -> BooksRepo|None:
+        sql = select(BooksRepo).where(BooksRepo.id == book_id)
+        with self.session() as sess:
+            result = sess.scalars(sql).one_or_none()
         return result
 
     def create_book(self, user_id, form: BookCreateForm) -> BooksRepo|None:
@@ -157,6 +163,11 @@ class Repository():
             sess.commit()
             sess.refresh(book)
         return book
+
+    def delete_book(self, book: BooksRepo):
+        with self.session() as sess:
+            sess.delete(book)
+            sess.commit()
 
     def get_genres(self) -> list[GenresRepo]:
         with self.session() as sess:
