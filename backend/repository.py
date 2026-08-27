@@ -1,5 +1,5 @@
 from config import DB_URL
-from models import BooksSortFields, BookCreateForm, BookUpdateForm, RegisterForm
+from models import BooksSortFields, BookCreateForm, BookUpdateForm, RegisterForm, SectionCreateAfterForm, SectionCreateFirstForm, ChoiceCreateModel
 from sqlalchemy import desc, asc, create_engine, ForeignKey, String, select, Text, and_, Table, Column
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, sessionmaker, joinedload, relationship, undefer
 from datetime import datetime
@@ -37,7 +37,7 @@ class BooksRepo(Base):
     author: Mapped[UsersRepo] = relationship(back_populates='books')
     genres: Mapped[list['GenresRepo']] = relationship(secondary=book_to_genre, back_populates='books')
     tags: Mapped[list['TagsRepo']] = relationship(secondary=book_to_tag, back_populates='books')
-    sections: Mapped['SectionsRepo'] = relationship(back_populates='book')
+    sections: Mapped['SectionsRepo'] = relationship(back_populates='book', passive_deletes=True)
 
 class GenresRepo(Base):
     __tablename__ = 'genres'
@@ -60,13 +60,22 @@ class SectionsRepo(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     book_id: Mapped[int] = mapped_column(ForeignKey('books.id'), nullable=False)
-    is_default: Mapped[bool] = mapped_column(nullable=False, default=False)
-    previous_section: Mapped[int|None] = mapped_column(ForeignKey('sections.id'), nullable=True)
     title: Mapped[str] = mapped_column(String(256), nullable=False)
+    is_first: Mapped[bool] = mapped_column(nullable=False, default=False)
 
     book: Mapped[BooksRepo] = relationship(back_populates='sections')
-    chapters: Mapped[list['ChaptersRepo']] = relationship(back_populates='section')
-    next_sections: Mapped[list['SectionsRepo']] = relationship()
+    chapters: Mapped[list[ChaptersRepo]] = relationship(back_populates='section')
+
+class ChoicesRepo(Base):
+    __tablename__ = 'choices'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    from_section_id: Mapped[int] = mapped_column(ForeignKey('sections.id'), nullable=False)
+    to_section_id: Mapped[int] = mapped_column(ForeignKey('sections.id'), nullable=False)
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+
+    from_section: Mapped[SectionsRepo] = relationship(foreign_keys=from_section_id)
+    to_section: Mapped[SectionsRepo] = relationship(foreign_keys=to_section_id)
 
 class ChaptersRepo(Base):
     __tablename__ = 'chapters'
@@ -119,7 +128,7 @@ class Repository():
             result = sess.scalars(sql).one_or_none()
         return result
 
-    def create_book(self, user_id, form: BookCreateForm) -> BooksRepo|None:
+    def create_book(self, user_id, form: BookCreateForm) -> BooksRepo:
         new_book = BooksRepo(author_id=user_id, title=form.title, description=form.description)
         with self.session() as sess:
             if form.genres:
@@ -209,22 +218,90 @@ class Repository():
             sess.refresh(new_tag)
         return new_tag
 
+    def get_book_sections(self, book_id: int) -> list[BooksRepo]:
+        sql = select(SectionsRepo).where(SectionsRepo.book_id == book_id)
+        with self.session() as sess:
+            return sess.scalars(sql).all()
+
     def get_book_first_sections(self, book_id: int) -> list[SectionsRepo]:
         sql = select(SectionsRepo).where(
             SectionsRepo.book_id == book_id,
-            SectionsRepo.previous_section.is_(None)).options(
-                joinedload(SectionsRepo.chapters), joinedload(SectionsRepo.next_sections))
+            SectionsRepo.is_first == True)
 
         with self.session() as sess:
-            result = sess.scalars(sql).unique().all()
+            result = sess.scalars(sql).all()
         return result
 
     def get_section_by_id(self, section_id: int) -> SectionsRepo|None:
         sql = select(SectionsRepo).where(SectionsRepo.id == section_id).options(
-            joinedload(SectionsRepo.chapters), joinedload(SectionsRepo.next_sections))
+            joinedload(SectionsRepo.chapters))
 
         with self.session() as sess:
             result = sess.scalars(sql).unique().one_or_none()
+        return result
+
+    def get_simple_section(self, section_id: int) -> SectionsRepo|None:
+        sql = select(SectionsRepo).where(SectionsRepo.id == section_id)
+
+        with self.session() as sess:
+            result = sess.scalars(sql).unique().one_or_none()
+        return result
+
+    def get_section_choices(self, section_id: int) -> list[ChoicesRepo]:
+        sql = select(ChoicesRepo).where(ChoicesRepo.from_section_id == section_id).options(
+            joinedload(ChoicesRepo.to_section))
+        with self.session() as sess:
+            result = sess.scalars(sql).all()
+        return result
+
+    def create_section_first(self, form: SectionCreateFirstForm) -> SectionsRepo:
+        with self.session() as sess:
+            new_section = SectionsRepo(book_id=form.book_id, title=form.section_title, is_first=True)
+            sess.add(new_section)
+            sess.commit()
+            sess.refresh(new_section)
+        return new_section    
+
+    def create_section_after(self, form: SectionCreateAfterForm) -> SectionsRepo:
+        with self.session() as sess:            
+            new_section = SectionsRepo(book_id=form.book_id, title=form.section_title)
+            sess.add(new_section)
+            sess.flush()
+
+            new_choice = ChoicesRepo(from_section_id=form.after_section_id, to_section_id=new_section.id, name=form.choice_name)
+            sess.add(new_choice)
+            sess.commit()
+
+            sess.refresh(new_section)
+        return new_section
+
+    def create_choice(self, form: ChoiceCreateModel) -> ChoicesRepo:
+        new_choice = ChoicesRepo(from_section_id=form.from_section_id, to_section_id=form.to_section_id, name=form.name)
+        with self.session() as sess:
+            sess.add(new_choice)
+            sess.commit()
+            sess.refresh(new_choice, attribute_names=['to_section'])
+        return new_choice
+
+    def get_choice(self, choice_id: int) -> ChoicesRepo|None:
+        sql = select(ChoicesRepo).where(ChoicesRepo.id == choice_id)
+        with self.session() as sess:
+            result = sess.scalars(sql).one_or_none()
+        return result
+
+    def delete_choice(self, choice_id: int):
+        choice = self.get_choice(choice_id)
+        with self.session() as sess:
+            sess.delete(choice)
+            sess.commit()
+            
+
+    def get_book_by_choice(self, choice_id: int) -> BooksRepo|None:
+        sql = select(BooksRepo).select_from(ChoicesRepo).where(ChoicesRepo.id == choice_id).join(
+            SectionsRepo, SectionsRepo.id == ChoicesRepo.to_section_id).join(
+                BooksRepo, BooksRepo.id == SectionsRepo.book_id)
+        with self.session() as sess:
+            result = sess.scalars(sql).first()
         return result
 
     def get_chapter_by_id(self, chapter_id: int) -> ChaptersRepo:
