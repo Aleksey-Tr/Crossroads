@@ -66,15 +66,33 @@ class BookUpdateForm(BaseModel):
 class SectionShortModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    is_default: bool
+    book_id: int
     title: str = Field(max_length=256)
 
-    
 class SectionFullModel(SectionShortModel):
     chapters: list['ChapterShortModel'] = []
-    next_sections: list[SectionShortModel] = []
+
+class SectionCreateFirstForm(BaseModel):
     book_id: int
-    previous_section: int|None = None
+    section_title: str = Field(max_length=256)
+
+class SectionCreateAfterForm(SectionCreateFirstForm):
+    after_section_id: int
+    choice_name: str = Field(max_length=256)
+
+class ChoiceModel(BaseModel):
+    id: int
+    from_section_id: int
+    to_section_id: int
+    name: str = Field(max_length=256)
+
+    to_section: SectionShortModel|None = None
+
+class ChoiceCreateModel(BaseModel):
+    book_id: int
+    from_section_id: int
+    to_section_id: int
+    name: str = Field(max_length=256)
 
 class ChapterShortModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)

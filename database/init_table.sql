@@ -45,24 +45,16 @@ CREATE TABLE book_to_tag (
 CREATE TABLE sections (
     id SERIAL PRIMARY KEY,
     book_id INTEGER NOT NULL REFERENCES books (id) ON DELETE CASCADE,
-    is_default BOOLEAN NOT NULL DEFAULT FALSE,
-    previous_section INTEGER NULL REFERENCES sections (id) ON DELETE SET NULL,
-    title VARCHAR(256) NOT NULL
+    title VARCHAR(256) NOT NULL,
+    is_first BOOLEAN NOT NULL DEFAULT FALSE
 );
 
-CREATE INDEX idx_first_sections ON sections (book_id)
-WHERE
-    previous_section IS NULL;
-
-CREATE UNIQUE INDEX idx_one_first_default_per_book ON sections (book_id)
-where
-    previous_section IS NULL
-    AND is_default = TRUE;
-
-CREATE UNIQUE INDEX idx_one_default_per_section ON sections (previous_section)
-where
-    is_default = TRUE
-    AND previous_section IS NOT NULL;
+CREATE TABLE choices (
+    id SERIAL PRIMARY KEY,
+    from_section_id INTEGER NOT NULL REFERENCES sections (id) ON DELETE CASCADE,
+    to_section_id INTEGER NOT NULL REFERENCES sections (id) ON DELETE CASCADE,
+    name VARCHAR(256) NOT NULL
+);
 
 CREATE TABLE chapters (
     id SERIAL PRIMARY KEY,
