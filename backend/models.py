@@ -89,8 +89,6 @@ class ChoiceModel(BaseModel):
     to_section: SectionShortModel|None = None
 
 class ChoiceCreateModel(BaseModel):
-    book_id: int
-    from_section_id: int
     to_section_id: int
     name: str = Field(max_length=256)
 

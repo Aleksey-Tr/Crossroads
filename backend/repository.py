@@ -64,7 +64,7 @@ class SectionsRepo(Base):
     is_first: Mapped[bool] = mapped_column(nullable=False, default=False)
 
     book: Mapped[BooksRepo] = relationship(back_populates='sections')
-    chapters: Mapped[list[ChaptersRepo]] = relationship(back_populates='section')
+    chapters: Mapped[list["ChaptersRepo"]] = relationship(back_populates='section')
 
 class ChoicesRepo(Base):
     __tablename__ = 'choices'
@@ -275,8 +275,8 @@ class Repository():
             sess.refresh(new_section)
         return new_section
 
-    def create_choice(self, form: ChoiceCreateModel) -> ChoicesRepo:
-        new_choice = ChoicesRepo(from_section_id=form.from_section_id, to_section_id=form.to_section_id, name=form.name)
+    def create_choice(self, from_section_id, form: ChoiceCreateModel) -> ChoicesRepo:
+        new_choice = ChoicesRepo(from_section_id=from_section_id, to_section_id=form.to_section_id, name=form.name)
         with self.session() as sess:
             sess.add(new_choice)
             sess.commit()

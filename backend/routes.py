@@ -213,23 +213,23 @@ def create_section_after(form: SectionCreateAfterForm, user: UserModel = Depends
     new_section = repo.create_section_after(form)
     return new_section
 
-@router.post('/choice', responses={400: {'description': 'Указанная часть книги ей не принадлежит'},
-                                    403: {'description': 'Недостаточно прав'},
-                                    404: {'description': 'Книга или часть книги с указанным ID не найдена'}})
-def create_choice(form: ChoiceCreateModel, user: UserModel = Depends(get_user_by_token)) -> ChoiceModel:
-    book = repo.get_simple_book(form.book_id)
-    from_section = repo.get_simple_section(form.from_section_id)
-    to_section = repo.get_simple_section(form.to_section_id)
+# @router.post('/choice', responses={400: {'description': 'Указанная часть книги ей не принадлежит'},
+#                                     403: {'description': 'Недостаточно прав'},
+#                                     404: {'description': 'Книга или часть книги с указанным ID не найдена'}})
+# def create_choice(form: ChoiceCreateModel, user: UserModel = Depends(get_user_by_token)) -> ChoiceModel:
+#     book = repo.get_simple_book(form.book_id)
+#     from_section = repo.get_simple_section(form.from_section_id)
+#     to_section = repo.get_simple_section(form.to_section_id)
 
-    if not (book and from_section and to_section):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Книга или часть книги с указанным ID не найдена')
-    if book.author_id != user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Недостаточно прав')
-    if book.id != from_section.book_id or book.id != to_section.book_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Указанная часть книги ей не принадлежит')
+#     if not (book and from_section and to_section):
+#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Книга или часть книги с указанным ID не найдена')
+#     if book.author_id != user.id:
+#         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Недостаточно прав')
+#     if book.id != from_section.book_id or book.id != to_section.book_id:
+#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Указанная часть книги ей не принадлежит')
 
-    new_choice = repo.create_choice(form)
-    return new_choice
+#     new_choice = repo.create_choice(form)
+#     return new_choice
 
 @router.delete('/choice')
 def delete_choice(choice_id: int, user: UserModel = Depends(get_user_by_token)):
@@ -255,6 +255,21 @@ def get_section_choices(section_id: int) -> list[ChoiceModel]:
 
     choices_orm = repo.get_section_choices(section_id)
     return choices_orm
+
+@router.post('/sections/{section_id}/choices')
+def create_section_choice(section_id: int, form: ChoiceCreateModel, user: UserModel = Depends(get_user_by_token)) -> ChoiceModel:
+    section = repo.get_simple_section(section_id)
+    next_section = repo.get_simple_section(form.to_section_id)
+    if not (section and next_section):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Часть книги с указанным ID не найдена')
+
+    book = repo.get_simple_book(section.book_id)
+    if book.author_id != user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Недостаточно прав')
+
+    return repo.create_choice(section_id, form)
+
+
 
 @router.get('/chapters/{chapter_id}', responses={404: {'description': 'Глава с указанным ID не найдена'}})
 def get_chapter_by_id(chapter_id: int) -> ChapterFullModel:
