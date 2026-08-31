@@ -1,9 +1,15 @@
-from fastapi import APIRouter, HTTPException, status, Query, Depends, Request, Response
+from fastapi import APIRouter, HTTPException, status, Query, Depends, Request, Response, UploadFile, File
 from models import BookModel, BooksSortFields, RegisterForm, LoginForm, GenreModel, TagModel, SectionFullModel, ChapterFullModel, UserModel, BookCreateForm, BookUpdateForm, ChoiceModel, SectionCreateFirstForm, SectionCreateAfterForm, SectionShortModel, ChoiceCreateModel
 from repository import repo
 from auth import password_to_hash, verify_password, create_jwt, verify_jwt
+from pathlib import Path
+import shutil
+from fastapi.responses import FileResponse
+from config import COVERS_DIR
 
 router = APIRouter()
+dir_path = Path(COVERS_DIR)
+dir_path.mkdir(exist_ok=True)
 
 @router.post('/register', responses={409: {'description': 'Данный логин или имя заняты'}})
 def register(form: RegisterForm) -> UserModel:
@@ -117,6 +123,48 @@ def delete_book(book_id: int, user: UserModel = Depends(get_user_by_token)):
 
     repo.delete_book(book)
     return {'detail': 'Книга успешно удалена'}
+
+@router.put('/books/{book_id}/cover')
+def load_book_cover(book_id: int, file: UploadFile = File(...)):
+    book = repo.get_simple_book(book_id)
+    if not book:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Книга не найдена')
+
+    is_file_exist = list(dir_path.glob(str(book_id)+".*"))
+    for f in is_file_exist:
+        f.unlink()
+
+    file_path = dir_path.joinpath(str(book_id)+Path(file.filename).suffix)
+    with file_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    return {"filename": file_path}
+
+@router.get('/books/{book_id}/cover')
+def get_book_cover(book_id: int):
+    book = repo.get_simple_book(book_id)
+    if not book:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Книга не найдена')
+
+    filename = list(dir_path.glob(str(book_id)+".*"))
+    if not filename:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Обложка не найдена')
+
+    return FileResponse(filename[0])
+
+@router.delete('/books/{book_id}/cover')
+def delete_book_cover(book_id: int):
+    book = repo.get_simple_book(book_id)
+    if not book:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Книга не найдена')
+
+    files = list(dir_path.glob(str(book_id)+".*"))
+    if not files:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Обложка не найдена')
+    
+    for f in files:
+        f.unlink()
+    return {'detail': 'Обложка успешно удалена'}
 
 @router.get('/genres')
 def get_genres() -> list[GenreModel]:
