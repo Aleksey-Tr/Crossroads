@@ -1,3 +1,4 @@
 DB_URL = ''
 SECRET_KEY = 'dGhpcyBpcyBhIHZlcnkgbG9uZyBzZWNyZXQga2V5IGZvciBIUzI1NiBhbGdvcml0aG0'
 ALGORITHM = 'HS256'
+COVERS_DIR = "./covers"
