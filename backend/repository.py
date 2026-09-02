@@ -336,8 +336,8 @@ class Repository():
             result = sess.scalars(sql).unique().all()
         return result
     
-    def create_user(self, form: RegisterForm) -> UsersRepo:
-        new_user = UsersRepo(login=form.login, hashed_password=form.raw_password, nickname=form.nickname)
+    def create_user(self, login: str, nickname: str, hashed_password: str) -> UsersRepo:
+        new_user = UsersRepo(login=login, hashed_password=hashed_password, nickname=nickname)
         with self.session() as sess:
             sess.add(new_user)
             sess.commit()
