@@ -1,20 +1,16 @@
-from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from datetime import datetime
 
+__all__ = ["BooksSortFields", "RegisterForm", "LoginFormModel", "UserModel", "GenreModel", "TagModel", "BookCreateForm", "BookModel", "BookUpdateForm",
+           "SectionPreviewModel", "SectionModel", "FirstSectionCreateForm", "MiddleSectionCreateForm", "ChapterPreviewModel", "ChapterModel", "FirstChapterCreateForm", "MiddleChapterCreateForm"]
 
 class BooksSortFields(Enum):
     date = "date"
     name = "name"
 
-class UserModel(BaseModel):
+class ResponseModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: int
-    role: str = Field(max_length=16)
-    #login: str = Field(max_length=32)
-    nickname: str = Field(max_length=32)
-
-disallowed_characters = [' ', ':', "'", '"']
 
 class RegisterForm(BaseModel):
     login: str = Field(max_length=32, min_length=4)
@@ -23,80 +19,77 @@ class RegisterForm(BaseModel):
 
     @field_validator('login', 'nickname', 'raw_password')
     def check_fields(value: str):
+        disallowed_characters = [' ', ':', "'", '"']
         if any((char in value for char in disallowed_characters)):
             raise ValueError("Недопустимые символы: '"+"' '".join(disallowed_characters)+"'")
         return value
-    
-class LoginForm(BaseModel):
+
+class LoginFormModel(BaseModel):
     login: str = Field(max_length=32, min_length=4)
     password: str = Field(max_length=16, min_length=6)
 
-class GenreModel(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class UserModel(ResponseModel):
     id: int
-    name: str = Field(max_length=64)
+    role: str
+    nickname: str
 
-class TagModel(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class GenreModel(ResponseModel):
     id: int
-    name: str = Field(max_length=64)
+    name: str
+
+class TagModel(ResponseModel):
+    id: int
+    name: str
 
 class BookCreateForm(BaseModel):
     title: str = Field(max_length=64)
     description: str|None = None
-    genres: list[int]
-    tags: list[int]
+    genres: list[int]|None = None
+    tags: list[int]|None = None
 
-class BookModel(BookCreateForm):
-    model_config = ConfigDict(from_attributes=True)
+class BookModel(BookCreateForm, ResponseModel):
     id: int
-    #author_id: int|None = None
     genres: list[GenreModel]
     tags: list[TagModel]
     published_at: datetime
 
     author: UserModel|None = None
-    
+
 class BookUpdateForm(BaseModel):
     title: str|None = Field(max_length=64, default=None)
     description: str|None = None
     genres: list[int]|None = None
     tags: list[int]|None = None
 
-class SectionShortModel(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id: int
+class FirstSectionCreateForm(BaseModel):
     book_id: int
-    title: str = Field(max_length=256)
+    name: str = Field(max_length=256)
 
-class SectionFullModel(SectionShortModel):
-    chapters: list['ChapterShortModel'] = []
-
-class SectionCreateFirstForm(BaseModel):
-    book_id: int
-    section_title: str = Field(max_length=256)
-
-class SectionCreateAfterForm(SectionCreateFirstForm):
+class MiddleSectionCreateForm(FirstSectionCreateForm):
     after_section_id: int
-    choice_name: str = Field(max_length=256)
 
-class ChoiceModel(BaseModel):
+class SectionPreviewModel(FirstSectionCreateForm, ResponseModel):
     id: int
-    from_section_id: int
-    to_section_id: int
-    name: str = Field(max_length=256)
+    previous_section_id: int|None
 
-    to_section: SectionShortModel|None = None
+class SectionModel(SectionPreviewModel):
+    chapters: list['ChapterPreviewModel'] = []
 
-class ChoiceCreateModel(BaseModel):
-    to_section_id: int
-    name: str = Field(max_length=256)
-
-class ChapterShortModel(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class ChapterPreviewModel(ResponseModel):
     id: int
-    title: str = Field(max_length=64)
+    title: str
+    position: int
 
-class ChapterFullModel(ChapterShortModel):
+class ChapterModel(ChapterPreviewModel):
     section_id: int
+    previous_chapter_id: int|None
+    next_chapter_id: int|None
     content: str
+
+class FirstChapterCreateForm(BaseModel):
+    section_id: int
+    title: str = Field(64)
+
+class MiddleChapterCreateForm(BaseModel):
+    title: str = Field(64)
+    previous_chapter_id: int
