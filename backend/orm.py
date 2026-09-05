@@ -64,7 +64,10 @@ class SectionORM(BaseORM):
     previous_section_id: Mapped[int|None] = mapped_column(ForeignKey('sections.id'), nullable=True)
 
     book: Mapped[BookORM] = relationship(back_populates='sections')
-    chapters: Mapped[list["ChapterORM"]] = relationship(back_populates='section')
+    chapters: Mapped[list["ChapterORM"]] = relationship(
+        back_populates='section',
+        order_by="ChapterORM.position",
+    )
 
 class ChapterORM(BaseORM):
     __tablename__ = 'chapters'
@@ -72,11 +75,21 @@ class ChapterORM(BaseORM):
     id: Mapped[int] = mapped_column(primary_key=True)
     section_id: Mapped[int] = mapped_column(ForeignKey('sections.id'), nullable=False)
     title: Mapped[str] = mapped_column(String(64), nullable=False)
-    content: Mapped[str] = mapped_column(Text, nullable=False, deferred=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False, deferred=True, default="")
     previous_chapter_id: Mapped[int|None] = mapped_column(ForeignKey("chapters.id"), nullable=True, default=None)
     next_chapter_id: Mapped[int|None] = mapped_column(ForeignKey("chapters.id"), nullable=True, default=None)
     position: Mapped[int] = mapped_column(nullable=False)
 
-    previous_chapter: Mapped["ChapterORM|None"] = relationship(foreign_keys=[previous_chapter_id], remote_side=[id])
-    next_chapter: Mapped["ChapterORM|None"] = relationship(foreign_keys=[next_chapter_id], remote_side=[id])
+    previous_chapter: Mapped["ChapterORM|None"] = relationship(
+        foreign_keys=[previous_chapter_id],
+        remote_side=[id],
+        post_update=True,
+        viewonly=True,
+    )
+    next_chapter: Mapped["ChapterORM|None"] = relationship(
+        foreign_keys=[next_chapter_id],
+        remote_side=[id],
+        post_update=True,
+        viewonly=True,
+    )
     section: Mapped[SectionORM] = relationship(back_populates='chapters')

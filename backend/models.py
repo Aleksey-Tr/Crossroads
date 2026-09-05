@@ -3,7 +3,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from datetime import datetime
 
 __all__ = ["BooksSortFields", "RegisterForm", "LoginFormModel", "UserModel", "GenreModel", "TagModel", "BookCreateForm", "BookModel", "BookUpdateForm",
-           "SectionPreviewModel", "SectionModel", "FirstSectionCreateForm", "MiddleSectionCreateForm", "ChapterPreviewModel", "ChapterModel", "FirstChapterCreateForm", "MiddleChapterCreateForm"]
+           "SectionPreviewModel", "SectionModel", "FirstSectionCreateForm", "MiddleSectionCreateForm", "ChapterPreviewModel", "ChapterModel", "FirstChapterCreateForm", "MiddleChapterCreateForm", "ChapterUpdateForm"]
 
 class BooksSortFields(Enum):
     date = "date"
@@ -88,8 +88,11 @@ class ChapterModel(ChapterPreviewModel):
 
 class FirstChapterCreateForm(BaseModel):
     section_id: int
-    title: str = Field(64)
+    title: str = Field(max_length=64)
 
 class MiddleChapterCreateForm(BaseModel):
-    title: str = Field(64)
+    title: str = Field(max_length=64)
     previous_chapter_id: int
+
+class ChapterUpdateForm(BaseModel):
+    content: str

@@ -19,6 +19,14 @@ def get_user_by_token(request: Request) -> UserModel:
             return user
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Пользователь не авторизирован')
 
+async def ensure_book_author(sess, book_id: int, user: UserModel) -> BookORM:
+    book = await sess.get(BookORM, book_id)
+    if not book:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Книга не найдена')
+    if book.author_id != user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Недостаточно прав')
+    return book
+
 @router.post('/register')
 async def register(form: RegisterForm) -> UserModel:
     async with session_fabric() as sess:
@@ -315,11 +323,9 @@ async def create_middle_chapter(form: MiddleChapterCreateForm, user: UserModel =
         if not prev_chapter:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Глава с указанным ID не найдена')
 
-        new_chapter = SectionRepo(sess).create_middle_chapter(form.title, prev_chapter)
+        new_chapter = await SectionRepo(sess).create_middle_chapter(form.title, prev_chapter)
         await sess.commit()
-
-        await sess.refresh(new_chapter)
-        return new_chapter
+        return ChapterPreviewModel.model_validate(new_chapter)
 
 @router.post("/chapters/first")
 async def create_first_chapter(form: FirstChapterCreateForm, user: UserModel = Depends(get_user_by_token)) -> ChapterPreviewModel:
@@ -329,6 +335,48 @@ async def create_first_chapter(form: FirstChapterCreateForm, user: UserModel = D
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Часть книги не найдена')
 
         new_chapter = await SectionRepo(sess).create_first_chapter(form.section_id, form.title)
-        sess.commit()
-        sess.refresh(new_chapter)
-        return new_chapter
+        await sess.commit()
+        return ChapterPreviewModel.model_validate(new_chapter)
+
+@router.patch("/chapters/{chapter_id}")
+async def update_chapter(chapter_id: int, form: ChapterUpdateForm, user: UserModel = Depends(get_user_by_token)) -> ChapterModel:
+    async with session_fabric() as sess:
+        repo = SectionRepo(sess)
+        chapter = await repo.get_chapter_by_id(chapter_id)
+        if not chapter:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Глава с указанным ID не найдена')
+
+        section = await sess.get(SectionORM, chapter.section_id)
+        await ensure_book_author(sess, section.book_id, user)
+
+        updated = await repo.update_chapter(chapter, form.content)
+        await sess.commit()
+        return ChapterModel.model_validate(updated)
+
+@router.delete("/chapters/{chapter_id}")
+async def delete_chapter(chapter_id: int, user: UserModel = Depends(get_user_by_token)):
+    async with session_fabric() as sess:
+        repo = SectionRepo(sess)
+        chapter = await repo.get_chapter_by_id(chapter_id)
+        if not chapter:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Глава с указанным ID не найдена')
+
+        section = await sess.get(SectionORM, chapter.section_id)
+        await ensure_book_author(sess, section.book_id, user)
+
+        await repo.delete_chapter(chapter)
+        await sess.commit()
+        return {'detail': 'Глава успешно удалена'}
+
+@router.delete("/sections/{section_id}")
+async def delete_section(section_id: int, user: UserModel = Depends(get_user_by_token)):
+    async with session_fabric() as sess:
+        repo = SectionRepo(sess)
+        section = await repo.get_section_by_id(section_id)
+        if not section:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Часть книги не найдена')
+
+        await ensure_book_author(sess, section.book_id, user)
+        await repo.delete_section(section)
+        await sess.commit()
+        return {'detail': 'Часть книги успешно удалена'}

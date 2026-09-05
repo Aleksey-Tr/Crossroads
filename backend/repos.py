@@ -186,45 +186,82 @@ class SectionRepo(BaseRepo):
         return result.scalars().one_or_none()
 
     async def create_first_chapter(self, section_id: int, title: str) -> ChapterORM:
-        new_position = self.position_step
-
-        sql = select(ChapterORM).where(and_(ChapterORM.section_id==section_id, ChapterORM.previous_chapter_id.is_(None)))
-        result = await self.session.execute(sql)
-        next_chapter = result.scalars().one_or_none()
-        if next_chapter:
-            new_position = next_chapter.position-self.position_step
-    
-        new_chapter = ChapterORM(section_id=section_id, title=title, content="", previous_chapter_id=None, next_chapter=next_chapter, position=new_position)
-        self.session.flush()
-        
-        if next_chapter:
-            next_chapter.previous_chapter = new_chapter
+        chapters = await self.get_section_chapters(section_id)
+        new_chapter = ChapterORM(
+            section_id=section_id,
+            title=title,
+            content="",
+            previous_chapter_id=None,
+            next_chapter_id=None,
+            position=0,
+        )
+        self.session.add(new_chapter)
         await self.session.flush()
-
+        await self._relink_chapters([new_chapter, *chapters])
         return new_chapter
 
     async def create_middle_chapter(self, title: str, left_chapter: ChapterORM) -> ChapterORM:
-        right_chapter = None
-        new_position = left_chapter.position+self.position_step
+        chapters = await self.get_section_chapters(left_chapter.section_id)
+        left_index = next((index for index, chapter in enumerate(chapters) if chapter.id == left_chapter.id), None)
+        if left_index is None:
+            chapters.append(left_chapter)
+            left_index = len(chapters) - 1
 
-        if left_chapter.next_chapter_id:
-            right_chapter = await self.session.get(ChapterORM, left_chapter.next_chapter_id)
-            if right_chapter.position-left_chapter.position <= 1:
-                self.recalculate_positions(left_chapter.section_id)            
-            new_position = int((left_chapter.position+right_chapter.position)/2)
-
-        new_chapter = ChapterORM(section_id=left_chapter.section_id, title=title, position=new_position, left_chapter=left_chapter, right_chapter=right_chapter)
+        new_chapter = ChapterORM(
+            section_id=left_chapter.section_id,
+            title=title,
+            content="",
+            previous_chapter_id=None,
+            next_chapter_id=None,
+            position=0,
+        )
+        self.session.add(new_chapter)
         await self.session.flush()
 
-        left_chapter.next_chapter_id = new_chapter.id
-        if right_chapter:
-            right_chapter.previous_chapter_id = new_chapter.id
-
-        await self.session.flush()
+        ordered = chapters[:left_index + 1] + [new_chapter] + chapters[left_index + 1:]
+        await self._relink_chapters(ordered)
         return new_chapter
+
+    async def update_chapter(self, chapter: ChapterORM, content: str) -> ChapterORM:
+        chapter.content = content
+        await self.session.flush()
+        return chapter
+
+    async def delete_chapter(self, chapter: ChapterORM):
+        chapters = await self.get_section_chapters(chapter.section_id)
+        remaining = [item for item in chapters if item.id != chapter.id]
+        await self._relink_chapters(remaining)
+        chapter.previous_chapter_id = None
+        chapter.next_chapter_id = None
+        await self.session.delete(chapter)
+
+    async def delete_section(self, section: SectionORM):
+        next_sections = await self.get_next_sections(section.id)
+        for next_section in next_sections:
+            next_section.previous_section_id = section.previous_section_id
+
+        chapters = await self.get_section_chapters(section.id)
+        for chapter in chapters:
+            chapter.previous_chapter_id = None
+            chapter.next_chapter_id = None
+        await self.session.flush()
+        for chapter in chapters:
+            await self.session.delete(chapter)
+        await self.session.flush()
+        await self.session.delete(section)
 
     async def recalculate_positions(self, section_id: int):
         chapters = await self.get_section_chapters(section_id)
-        for index, chapter in enumerate(chapters, 1):
-            chapter.position = index*self.position_step
-        self.session.flush()
+        await self._relink_chapters(chapters)
+
+    async def _relink_chapters(self, ordered: list[ChapterORM]):
+        for chapter in ordered:
+            chapter.previous_chapter_id = None
+            chapter.next_chapter_id = None
+        await self.session.flush()
+
+        for index, chapter in enumerate(ordered):
+            chapter.position = (index + 1) * self.position_step
+            chapter.previous_chapter_id = ordered[index - 1].id if index > 0 else None
+            chapter.next_chapter_id = ordered[index + 1].id if index + 1 < len(ordered) else None
+        await self.session.flush()
